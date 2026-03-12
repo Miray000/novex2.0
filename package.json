@@ -1,0 +1,20 @@
+{
+  "name": "moloco-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.5.0",
+    "@prisma/client": "^7.5.0",
+    "cookie-parser": "^1.4.7",
+    "csv-parser": "^3.0.0",
+    "dotenv": "^17.3.1",
+    "express": "^4.22.1",
+    "express-session": "^1.17.3",
+    "node-fetch": "^2.7.0",
+    "prisma": "^7.5.0"
+  }
+}
