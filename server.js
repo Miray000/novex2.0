@@ -114,6 +114,10 @@ function styles(theme="dark"){
  margin-right:15px;
  }
 
+.keitaro_hre{
+color:${buttonTex};
+}
+
  button{
  background:${buttonBg};
  border:none;
@@ -329,6 +333,7 @@ app.get("/", auth, async (req, res) => {
 ${themeToggle(theme)}
 <a href="/logs">Logs</a>
 <a href="/chart">Charts</a>
+<a href="/keitaro">Keitaro</a>
 <a href="/logout">Logout</a>
 
 <h1>Moloco Dashboard</h1>
@@ -375,6 +380,18 @@ new Chart(ctx, {
     plugins: { legend: { position: "top" } },
     scales: { y: { beginAtZero: true } }
   }
+})
+</script>
+<script>
+let secret = ""
+document.addEventListener("keydown", (e)=>{
+  secret += e.key.toLowerCase()
+
+  if(secret.includes("gamer")){
+    window.location.href = "/game"
+  }
+
+  if(secret.length > 10) secret = secret.slice(-10)
 })
 </script>
 `)
@@ -709,6 +726,426 @@ app.post("/",auth,async(req,res)=>{
 app.get("/logout",(req,res)=>{
  res.clearCookie("auth")
  res.redirect("/login")
+})
+// ---------------- KEITARO ----------------
+const KEITARO_URL = "https://levelupkeito.site/admin_api/v1/report/build"
+const KEITARO_TOKEN = process.env.KEITARO_TOKEN
+
+// GET /keitaro - форма, фильтр по дате и таблица с сортировкой toggle и таймзоной
+app.get("/keitaro", auth, async (req, res) => {
+  const theme = applyTheme(req, res)
+  const dateFilter = req.query.date || today()
+  const timezone = req.query.timezone || "UTC"
+  const sortMetric = req.query.sort || "conversions" // по умолчанию сортировка по конверсиям
+  const sortDir = req.query.dir === "asc" ? "asc" : "desc" // направление сортировки
+
+  // Получаем данные из базы с фильтром по дате
+  let reports = await prisma.keitaroReport.findMany({
+    where: { date: dateFilter }
+  })
+
+  // Сортируем по выбранной метрике
+  reports.sort((a, b) => {
+    const aVal = a.rows?.[sortMetric] || 0
+    const bVal = b.rows?.[sortMetric] || 0
+    return sortDir === "asc" ? aVal - bVal : bVal - aVal
+  })
+
+  // Функция для переключения направления сортировки
+  const nextDir = dir => dir === "asc" ? "desc" : "asc"
+
+  let tableRows = reports.map(r => {
+    const metrics = r.rows || {}
+    return `<tr>
+      <td>${r.campaign}</td>
+      <td>${metrics.leads || 0}</td>
+      <td>${metrics.sales || 0}</td>
+      <td>${metrics.conversions || 0}</td>
+      <td>${metrics.revenue || 0}</td>
+    </tr>`
+  }).join("")
+
+  res.send(`
+    ${styles(theme)}
+    ${themeToggle(theme)}
+    <div class="container">
+      <h1>Keitaro Dashboard (${dateFilter})</h1>
+      <a href="/">Home</a>
+      <a href="/logout">Logout</a>
+
+      <form method="POST" action="/keitaro/fetch">
+        <label>From</label>
+        <input type="date" name="from" value="${dateFilter}">
+        <label>To</label>
+        <input type="date" name="to" value="${dateFilter}">
+        <label>Timezone</label>
+        <select name="timezone">
+          <option value="UTC" ${timezone==="UTC"?"selected":""}>UTC</option>
+          <option value="GMT+2:00" ${timezone==="GMT+2:00"?"selected":""}>GMT+2:00</option>
+        </select>
+        <input type="hidden" name="theme" value="${theme}">
+        <button>Generate Report</button>
+      </form>
+
+      <h2>Filter by Date</h2>
+      <form method="GET" action="/keitaro">
+        <input type="date" name="date" value="${dateFilter}">
+        <input type="hidden" name="timezone" value="${timezone}">
+        <input type="hidden" name="sort" value="${sortMetric}">
+        <input type="hidden" name="dir" value="${sortDir}">
+        <button>Filter</button>
+      </form>
+
+      <h2>Campaigns</h2>
+      <table>
+        <tr>
+          <th>Campaign</th>
+          <th><a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&sort=leads&dir=${sortMetric==='leads'?nextDir(sortDir):'desc'}">Leads</a></th>
+          <th><a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&sort=sales&dir=${sortMetric==='sales'?nextDir(sortDir):'desc'}">Sales</a></th>
+          <th><a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&sort=conversions&dir=${sortMetric==='conversions'?nextDir(sortDir):'desc'}">Conversions</a></th>
+          <th><a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&sort=revenue&dir=${sortMetric==='revenue'?nextDir(sortDir):'desc'}">Revenue</a></th>
+        </tr>
+        ${tableRows}
+      </table>
+    </div>
+  `)
+})
+
+// POST /keitaro/fetch - генерация отчета и запись в базу
+app.post("/keitaro/fetch", auth, async (req, res) => {
+  const theme = applyTheme(req, res)
+  const from = req.body.from || today()
+  const to = req.body.to || today()
+  const timezone = req.body.timezone || "UTC"
+
+  const body = {
+    range: { from, to, timezone },
+    grouping: ["campaign_id","campaign"],
+    metrics: ["leads","sales","conversions","revenue"],
+    limit: 1287
+  }
+
+  try {
+    const response = await fetch(KEITARO_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${KEITARO_TOKEN}`
+      },
+      body: JSON.stringify(body)
+    })
+    const data = await response.json()
+    const rows = data.rows || []
+
+    // Перезапись отчета по дате и кампании
+    for (const campaignRow of rows) {
+      const campaign = campaignRow.campaign || campaignRow.campaign_id || "Unknown"
+      const existing = await prisma.keitaroReport.findFirst({ where: { date: from, campaign } })
+      if (existing) {
+        await prisma.keitaroReport.update({
+          where: { id: existing.id },
+          data: { rows: campaignRow }
+        })
+      } else {
+        await prisma.keitaroReport.create({
+          data: { date: from, campaign, rows: campaignRow }
+        })
+      }
+    }
+
+    res.redirect(`/keitaro?date=${from}&timezone=${timezone}`)
+  } catch (err) {
+    console.error(err)
+    res.send(`${styles(theme)}<div class="container">
+      ${themeToggle(theme)}
+      <h1>Error fetching Keitaro report</h1>
+      <p>${err.message}</p>
+      <a href="/keitaro">Back</a>
+    </div>`)
+  }
+})
+
+//---Game---
+
+app.get("/game", auth, (req, res) => {
+  res.send(`
+  <html>
+  <head>
+  <title>Secret Game</title>
+  <style>
+    body {
+      margin:0;
+      background:#111;
+      overflow:hidden;
+      font-family:Arial, sans-serif;
+    }
+
+    #ui {
+      position:absolute;
+      top:10px;
+      left:10px;
+      color:white;
+      z-index:10;
+      font-size:20px;
+      text-shadow: 0 0 5px black;
+    }
+
+    #exit {
+      position:absolute;
+      top:10px;
+      right:10px;
+      z-index:10;
+      padding:10px 20px;
+      background:#e74c3c;
+      color:white;
+      border:none;
+      cursor:pointer;
+      border-radius:8px;
+      box-shadow:0 0 10px rgba(0,0,0,0.5);
+      transition:0.2s;
+    }
+    #exit:hover {
+      background:#c0392b;
+    }
+
+    .map {
+      width:2000px;
+      height:2000px;
+      background:linear-gradient(#2ecc71 0 100%), linear-gradient(90deg, #27ae60 0 100%);
+      position:absolute;
+      overflow:hidden;
+    }
+
+    .road {
+      position:absolute;
+      width:100%;
+      height:100%;
+      background-image:
+        repeating-linear-gradient(#7f8c8d 0 50px, transparent 50px 100px),
+        repeating-linear-gradient(90deg, #7f8c8d 0 50px, transparent 50px 100px);
+      background-size:300px 300px;
+      opacity:0.6;
+    }
+
+    .car, .enemy {
+      width:50px;
+      height:80px;
+      position:absolute;
+      border-radius:10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+      transition: transform 0.05s linear;
+    }
+
+    .car {
+      background:linear-gradient(to bottom, #e74c3c, #c0392b);
+      border:2px solid #ff7979;
+    }
+
+    .enemy {
+      background:linear-gradient(to bottom, #3498db, #2980b9);
+      border:2px solid #5dade2;
+    }
+
+    .coin {
+      width:25px;
+      height:25px;
+      background:radial-gradient(circle at 30% 30%, #ffe066, #f1c40f);
+      border-radius:50%;
+      position:absolute;
+      box-shadow:0 0 15px #f1c40f, 0 0 25px rgba(255, 255, 0, 0.3);
+      animation: spin 2s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+  </head>
+
+  <body>
+    <div id="ui">
+      💰 <span id="score">0</span> |
+      🧩 Level: <span id="level">1</span>
+    </div>
+
+    <button id="exit" onclick="location.href='/'">EXIT</button>
+
+    <div id="map" class="map">
+      <div class="road"></div>
+    </div>
+
+    <script>
+      let car, camera, enemies = [], coins = []
+      let keys = {}
+      let score = 0
+      let level = 1
+      let gameOver = false
+
+      const map = document.getElementById("map")
+      const scoreEl = document.getElementById("score")
+      const levelEl = document.getElementById("level")
+
+      onkeydown = e => keys[e.key.toLowerCase()] = true
+      onkeyup = e => keys[e.key.toLowerCase()] = false
+
+      const carEl = document.createElement("div")
+      carEl.className="car"
+      map.appendChild(carEl)
+
+      function spawnCoins(n){
+        coins.forEach(c=>c.el.remove())
+        coins = []
+
+        for(let i=0;i<n;i++){
+          const el = document.createElement("div")
+          el.className="coin"
+
+          const coin = {
+            el,
+            x:Math.random()*1900,
+            y:Math.random()*1900
+          }
+
+          el.style.left = coin.x+"px"
+          el.style.top = coin.y+"px"
+
+          map.appendChild(el)
+          coins.push(coin)
+        }
+      }
+
+      function spawnEnemies(n){
+        enemies.forEach(e=>e.el.remove())
+        enemies = []
+
+        for(let i=0;i<n;i++){
+          const el = document.createElement("div")
+          el.className="enemy"
+
+          const enemy = {
+            el,
+            x:Math.random()*1900,
+            y:Math.random()*1900
+          }
+
+          map.appendChild(el)
+          enemies.push(enemy)
+        }
+      }
+
+      function restart(){
+        car = { x:1000, y:1000, angle:0, vx:0, vy:0 }
+        camera = { x:1000, y:1000 }
+
+        score = 0
+        level = 1
+        gameOver = false
+
+        scoreEl.innerText = score
+        levelEl.innerText = level
+
+        spawnCoins(10)
+        spawnEnemies(2)
+      }
+
+      function nextLevel(){
+        level++
+        levelEl.innerText = level
+        spawnCoins(10 + level*5)
+        spawnEnemies(1 + level)
+      }
+
+      function isOnRoad(x,y){
+        return (Math.floor(x/300)%2===0 || Math.floor(y/300)%2===0)
+      }
+
+      function loop(){
+
+        if(gameOver){
+          requestAnimationFrame(loop)
+          return
+        }
+
+        if(keys["a"]) car.angle -= 3
+        if(keys["d"]) car.angle += 3
+
+        const rad = car.angle * Math.PI / 180
+        let accel = isOnRoad(car.x, car.y) ? 0.4 : 0.2
+
+        if(keys["w"]){
+          car.vx += Math.sin(rad)*accel
+          car.vy -= Math.cos(rad)*accel
+        }
+
+        if(keys["s"]){
+          car.vx -= Math.sin(rad)*accel
+          car.vy += Math.cos(rad)*accel
+        }
+
+        car.vx *= 0.97
+        car.vy *= 0.97
+        car.x += car.vx
+        car.y += car.vy
+
+        if(car.x < 0) car.x = 0, car.vx = 0
+        if(car.y < 0) car.y = 0, car.vy = 0
+        if(car.x > 2000) car.x = 2000, car.vx = 0
+        if(car.y > 2000) car.y = 2000, car.vy = 0
+
+        enemies.forEach(e=>{
+          const dx = car.x - e.x
+          const dy = car.y - e.y
+          const dist = Math.sqrt(dx*dx+dy*dy)
+
+          e.x += dx/dist * 1.5
+          e.y += dy/dist * 1.5
+
+          if(dist < 40){
+            gameOver = true
+            setTimeout(restart,2000)
+          }
+
+          e.el.style.left = e.x+"px"
+          e.el.style.top = e.y+"px"
+        })
+
+        coins = coins.filter(c=>{
+          const dx = c.x - car.x
+          const dy = c.y - car.y
+
+          if(Math.sqrt(dx*dx+dy*dy)<40){
+            c.el.remove()
+            score++
+            scoreEl.innerText = score
+            return false
+          }
+          return true
+        })
+
+        if(coins.length===0) nextLevel()
+
+        camera.x += (car.x - camera.x)*0.1
+        camera.y += (car.y - camera.y)*0.1
+
+        map.style.transform =
+          \`translate(\${-camera.x + window.innerWidth/2}px,
+                      \${-camera.y + window.innerHeight/2}px)\`
+
+        carEl.style.left = car.x+"px"
+        carEl.style.top = car.y+"px"
+        carEl.style.transform =
+          \`translate(-50%,-50%) rotate(\${car.angle}deg)\`
+
+        requestAnimationFrame(loop)
+      }
+
+      restart()
+      loop()
+    </script>
+  </body>
+  </html>
+  `)
 })
 
 // ---------------- SERVER ----------------
