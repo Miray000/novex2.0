@@ -731,98 +731,170 @@ app.get("/logout",(req,res)=>{
 const KEITARO_URL = "https://levelupkeito.site/admin_api/v1/report/build"
 const KEITARO_TOKEN = process.env.KEITARO_TOKEN
 
-// GET /keitaro - форма, фильтр по дате и таблица с сортировкой toggle и таймзоной
+let cachedReports = []
+
+// GET /keitaro
 app.get("/keitaro", auth, async (req, res) => {
   const theme = applyTheme(req, res)
+
   const dateFilter = req.query.date || today()
   const timezone = req.query.timezone || "UTC"
-  const sortMetric = req.query.sort || "conversions" // по умолчанию сортировка по конверсиям
-  const sortDir = req.query.dir === "asc" ? "asc" : "desc" // направление сортировки
+  const groupFilter = req.query.group || "all"
 
-  // Получаем данные из базы с фильтром по дате
-  let reports = await prisma.keitaroReport.findMany({
-    where: { date: dateFilter }
-  })
+  const sortMetric = req.query.sort || "conversions"
+  const sortDir = req.query.dir === "asc" ? "asc" : "desc"
 
-  // Сортируем по выбранной метрике
+  let reports = cachedReports.filter(r =>
+    r.date === dateFilter &&
+    (groupFilter === "all" || r.group === groupFilter)
+  )
+
+  const groups = [...new Set(
+    cachedReports
+      .filter(r => r.date === dateFilter && r.group && r.group !== "No group")
+      .map(r => r.group)
+  )]
+
   reports.sort((a, b) => {
     const aVal = a.rows?.[sortMetric] || 0
     const bVal = b.rows?.[sortMetric] || 0
     return sortDir === "asc" ? aVal - bVal : bVal - aVal
   })
 
-  // Функция для переключения направления сортировки
   const nextDir = dir => dir === "asc" ? "desc" : "asc"
 
   let tableRows = reports.map(r => {
-    const metrics = r.rows || {}
+    const m = r.rows || {}
+
     return `<tr>
       <td>${r.campaign}</td>
-      <td>${metrics.leads || 0}</td>
-      <td>${metrics.sales || 0}</td>
-      <td>${metrics.conversions || 0}</td>
-      <td>${metrics.revenue || 0}</td>
+      <td>${r.group || "-"}</td>
+      <td>${m.leads ?? 0}</td>
+      <td>${m.sales ?? 0}</td>
+      <td>${m.clicks ?? 0}</td>
+      <td>${m.conversions ?? 0}</td>
+      <td>${m.revenue ?? 0}</td>
     </tr>`
   }).join("")
 
   res.send(`
     ${styles(theme)}
     ${themeToggle(theme)}
+
     <div class="container">
       <h1>Keitaro Dashboard (${dateFilter})</h1>
+
       <a href="/">Home</a>
       <a href="/logout">Logout</a>
 
+      <!-- FETCH -->
       <form method="POST" action="/keitaro/fetch">
         <label>From</label>
         <input type="date" name="from" value="${dateFilter}">
+
         <label>To</label>
         <input type="date" name="to" value="${dateFilter}">
+
         <label>Timezone</label>
         <select name="timezone">
           <option value="UTC" ${timezone==="UTC"?"selected":""}>UTC</option>
           <option value="GMT+2:00" ${timezone==="GMT+2:00"?"selected":""}>GMT+2:00</option>
+          <option value="GMT+3:00" ${timezone==="GMT+3:00"?"selected":""}>GMT+3:00</option>
         </select>
-        <input type="hidden" name="theme" value="${theme}">
+
         <button>Generate Report</button>
       </form>
 
+      <!-- FILTER DATE -->
       <h2>Filter by Date</h2>
       <form method="GET" action="/keitaro">
         <input type="date" name="date" value="${dateFilter}">
         <input type="hidden" name="timezone" value="${timezone}">
-        <input type="hidden" name="sort" value="${sortMetric}">
-        <input type="hidden" name="dir" value="${sortDir}">
+        <input type="hidden" name="group" value="${groupFilter}">
         <button>Filter</button>
       </form>
 
+      <!-- FILTER GROUP -->
+      <h2>Filter by Group</h2>
+      <form method="GET" action="/keitaro">
+        <select name="group">
+          <option value="all">All</option>
+          ${groups.map(g => `
+            <option value="${g}" ${groupFilter === g ? "selected" : ""}>
+              ${g}
+            </option>
+          `).join("")}
+        </select>
+
+        <input type="hidden" name="date" value="${dateFilter}">
+        <input type="hidden" name="timezone" value="${timezone}">
+        <button>Apply</button>
+      </form>
+
+      <!-- TABLE -->
       <h2>Campaigns</h2>
       <table>
         <tr>
           <th>Campaign</th>
-          <th><a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&sort=leads&dir=${sortMetric==='leads'?nextDir(sortDir):'desc'}">Leads</a></th>
-          <th><a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&sort=sales&dir=${sortMetric==='sales'?nextDir(sortDir):'desc'}">Sales</a></th>
-          <th><a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&sort=conversions&dir=${sortMetric==='conversions'?nextDir(sortDir):'desc'}">Conversions</a></th>
-          <th><a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&sort=revenue&dir=${sortMetric==='revenue'?nextDir(sortDir):'desc'}">Revenue</a></th>
+          <th>Group</th>
+
+          <th>
+            <a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&group=${groupFilter}&sort=leads&dir=${sortMetric==='leads'?nextDir(sortDir):'desc'}">
+              Leads
+            </a>
+          </th>
+
+          <th>
+            <a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&group=${groupFilter}&sort=sales&dir=${sortMetric==='sales'?nextDir(sortDir):'desc'}">
+              Sales
+            </a>
+          </th>
+
+          <th>
+            <a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&group=${groupFilter}&sort=clicks&dir=${sortMetric==='clicks'?nextDir(sortDir):'desc'}">
+              Clicks
+            </a>
+          </th>
+
+          <th>
+            <a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&group=${groupFilter}&sort=conversions&dir=${sortMetric==='conversions'?nextDir(sortDir):'desc'}">
+              Conversions
+            </a>
+          </th>
+
+          <th>
+            <a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&group=${groupFilter}&sort=revenue&dir=${sortMetric==='revenue'?nextDir(sortDir):'desc'}">
+              Revenue
+            </a>
+          </th>
         </tr>
+
         ${tableRows}
       </table>
     </div>
   `)
 })
 
-// POST /keitaro/fetch - генерация отчета и запись в базу
+
+// POST /keitaro/fetch
 app.post("/keitaro/fetch", auth, async (req, res) => {
   const theme = applyTheme(req, res)
+
   const from = req.body.from || today()
   const to = req.body.to || today()
   const timezone = req.body.timezone || "UTC"
 
   const body = {
     range: { from, to, timezone },
-    grouping: ["campaign_id","campaign"],
-    metrics: ["leads","sales","conversions","revenue"],
-    limit: 1287
+    grouping: ["campaign_group", "campaign_id", "campaign"],
+    metrics: [
+      "clicks",
+      "conversions",
+      "revenue",
+      "leads",   // 👈 добавили
+      "sales"    // 👈 добавили
+    ],
+    limit: 1000
   }
 
   try {
@@ -834,34 +906,41 @@ app.post("/keitaro/fetch", auth, async (req, res) => {
       },
       body: JSON.stringify(body)
     })
+
     const data = await response.json()
+    console.log("KEITARO RESPONSE:", data)
+
     const rows = data.rows || []
 
-    // Перезапись отчета по дате и кампании
-    for (const campaignRow of rows) {
-      const campaign = campaignRow.campaign || campaignRow.campaign_id || "Unknown"
-      const existing = await prisma.keitaroReport.findFirst({ where: { date: from, campaign } })
-      if (existing) {
-        await prisma.keitaroReport.update({
-          where: { id: existing.id },
-          data: { rows: campaignRow }
-        })
-      } else {
-        await prisma.keitaroReport.create({
-          data: { date: from, campaign, rows: campaignRow }
-        })
-      }
+    cachedReports = cachedReports.filter(r => r.date !== from)
+
+    for (const row of rows) {
+      console.log("ROW:", row)
+
+      cachedReports.push({
+        date: from,
+        campaign: row.campaign || row.campaign_id || "Unknown",
+        group:
+          row.campaign_group ||
+          row.campaign_group_name ||
+          row.group ||
+          "No group",
+        rows: row
+      })
     }
 
     res.redirect(`/keitaro?date=${from}&timezone=${timezone}`)
   } catch (err) {
     console.error(err)
-    res.send(`${styles(theme)}<div class="container">
-      ${themeToggle(theme)}
-      <h1>Error fetching Keitaro report</h1>
-      <p>${err.message}</p>
-      <a href="/keitaro">Back</a>
-    </div>`)
+
+    res.send(`${styles(theme)}
+      <div class="container">
+        ${themeToggle(theme)}
+        <h1>Error fetching Keitaro report</h1>
+        <p>${err.message}</p>
+        <a href="/keitaro">Back</a>
+      </div>
+    `)
   }
 })
 
