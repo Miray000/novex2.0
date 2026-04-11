@@ -19,12 +19,26 @@ const PASSWORD="novex2026"
 
 const API_KEY=process.env.API_KEY
 const AD_ACCOUNT_ID=process.env.AD_ACCOUNT_ID
+const UNITY_USER = process.env.UNITY_USER
+const UNITY_PASS = process.env.UNITY_PASS
+const UNITY_ORG_ID = process.env.UNITY_ORG_ID
 
 const REPORT_CONFIGS=[
- {name:"Greek",product_id:"JdKstbdrGyu6rG43"},
- {name:"777 Spark",product_id:"RzsypCQ4XMZZAB39"},
- {name:"Big Win Charge",product_id:"s9mpuudmBBTdJ2mo"},
- {name:"Royal Fruits Tap",product_id:"nLNpT49D2fyj3Zyq"}
+{name:"Greek",product_id:"JdKstbdrGyu6rG43"},
+{name:"777 Spark",product_id:"RzsypCQ4XMZZAB39"},
+{name:"Big Win Charge",product_id:"s9mpuudmBBTdJ2mo"},
+{name:"Royal Fruits Tap",product_id:"nLNpT49D2fyj3Zyq"},
+{name:"Sоn of Еgypt",product_id:"p1Iy84ip2fjAHWAp"},
+{name:"Big Fishing Bananza",product_id:"GjoeFffcGl2qxR9z"},
+{name:"Fоrtune Drаgon",product_id:"I2KIKmYmSiipixKR"},
+{name:"Wolf Golds",product_id:"y6JfgVCnqtxVpnTq"},
+{name:"Big Win Smash",product_id:"VL86svUKDzF8mC1x"},
+{name:"Gаtes Of Оlympus",product_id:"UMUXJ7nayWSP8GCn"},
+{name:"Big Catch Smash",product_id:"VhP7UFfWzoycFA9K"},
+{name:"Dragons Lore",product_id:"a0B7yg1uaAoIt4sR"},
+{name:"Dragons Flame",product_id:"aJuzdX0sqDDA5bTz"},
+{name:"Buff Clap",product_id:"sZRiXg4x3Y18oaH8"},
+{name:"Fortune Fire Dragon",product_id:"sI5tlgQdqUK2rban"},
 ]
 
 app.use(express.urlencoded({extended:true}))
@@ -334,7 +348,9 @@ ${themeToggle(theme)}
 <a href="/logs">Logs</a>
 <a href="/chart">Charts</a>
 <a href="/keitaro">Keitaro</a>
+<a href="/apps">Moloko Spend</a>
 <a href="/logout">Logout</a>
+
 
 <h1>Moloco Dashboard</h1>
 
@@ -411,8 +427,9 @@ app.get("/logs", auth, async (req, res) => {
 
   let html = `${styles(theme)}<div class="container">
   ${themeToggle(theme, `date=${date}&product=${product}&percent=${percent}`)}
+    <div class="topbar"><a href="/">Home</a><a href="/chart">Charts</a><a href="/keitaro">Keitaro</a><a href="/apps">Moloko Spend</a><a href="/logout">Logout</a></div>
   <h1>Saved Reports</h1>
-  <div class="topbar"><a href="/">Home</a><a href="/chart">Charts</a><a href="/logout">Logout</a></div>
+
   <form method="GET">
     <label>Дата</label>
     <input type="date" name="date" value="${date}">
@@ -512,7 +529,106 @@ function buildTable(rows, percent = 0) {
   return html
 }
 
+// ---------------- APPS ----------------
 
+app.get("/apps", auth, async (req, res) => {
+  const theme = applyTheme(req, res)
+
+  const startDate = req.query.startDate || today()
+  const endDate = req.query.endDate || startDate
+
+  // 👉 берем из БД
+  const records = await prisma.appSpend.findMany({
+    where: {
+      date: {
+        gte: startDate,
+        lte: endDate
+      }
+    }
+  })
+
+  // 👉 список дат
+  const dates = []
+  let current = new Date(startDate)
+
+  while (current <= new Date(endDate)) {
+    dates.push(current.toISOString().slice(0, 10))
+    current.setDate(current.getDate() + 1)
+  }
+
+  // 👉 структура
+  const appData = {}
+
+  records.forEach(r => {
+    if (!appData[r.app_name]) appData[r.app_name] = {}
+    appData[r.app_name][r.date] = r.spend
+  })
+
+  // 👉 сортировка
+  const appTotals = Object.entries(appData).map(([app, data]) => {
+    const total = Object.values(data).reduce((a, b) => a + b, 0)
+    return { app, total, data }
+  }).sort((a, b) => b.total - a.total)
+
+  // 👉 таблица
+  let header = `<tr><th>App</th>`
+  dates.forEach(d => header += `<th>${d}</th>`)
+  header += `<th>Total</th></tr>`
+
+  let rowsHtml = appTotals.map(obj => {
+    let row = `<tr><td>${obj.app}</td>`
+
+    dates.forEach(d => {
+      const val = obj.data[d] || 0
+      row += `<td>$${val.toFixed(2)}</td>`
+    })
+
+    row += `<td><b>$${obj.total.toFixed(2)}</b></td></tr>`
+    return row
+  }).join("")
+
+  const grandTotal = appTotals.reduce((sum, a) => sum + a.total, 0)
+
+  res.send(`
+    ${styles(theme)}
+    ${themeToggle(theme)}
+
+    <div class="container">
+
+      <h1>Spend by App (DB)</h1>
+
+      <a href="/">Home</a>
+      <a href="/logs">Logs</a>
+      <a href="/chart">Charts</a>
+      <a href="/keitaro">Keitaro</a>
+    <!-- <a href="/unity">Unity</a>  -->
+      <a href="/logout">Logout</a>
+
+      <!-- FILTER -->
+      <form method="GET">
+        From <input type="date" name="startDate" value="${startDate}">
+        To <input type="date" name="endDate" value="${endDate}">
+        <input type="hidden" name="theme" value="${theme}">
+        <button>Show</button>
+      </form>
+
+      <!-- GENERATE -->
+      <form method="POST">
+        Generate From <input type="date" name="startDate" value="${startDate}">
+        To <input type="date" name="endDate" value="${endDate}">
+        <button>Load from Moloco</button>
+      </form>
+
+      <h2>Total Spend: $${grandTotal.toFixed(2)}</h2>
+
+      <table>
+        ${header}
+        ${rowsHtml}
+      </table>
+
+    </div>
+  `)
+})
 
 // ---------------- CHARTS ----------------
 
@@ -626,12 +742,14 @@ app.get("/chart",auth,async(req,res)=>{
  <div class="container">
 
  ${themeToggle(theme)}
-
- <h1>Charts</h1>
-
  <a href="/">Home</a>
  <a href="/logs">Logs</a>
+ <a href="/keitaro">Keitaro</a>
+ <a href="/apps">Moloko Spend</a>
  <a href="/logout">Logout</a>
+ <h1>Charts</h1>
+
+
 
  <form>
 
@@ -680,6 +798,84 @@ app.get("/chart",auth,async(req,res)=>{
 
  `)
 
+})
+
+// ---------------- UNITY PAGE ----------------
+
+app.get("/unity", auth, async (req, res) => {
+  const theme = applyTheme(req, res)
+
+  const start = req.query.start || today()
+  const end = req.query.end || start
+
+  const reports = await prisma.unityReport.findMany({
+    where: {
+      date: {
+        gte: start,
+        lte: end
+      }
+    },
+    orderBy: [
+      { date: "asc" },
+      { spend: "desc" }
+    ]
+  })
+
+  const total = reports.reduce((sum, r) => sum + r.spend, 0)
+
+  res.send(`
+    ${styles(theme)}
+    ${themeToggle(theme)}
+
+    <div class="container">
+
+      <h1>Unity Reports</h1>
+
+      <a href="/">Home</a>
+      <a href="/logs">Logs</a>
+      <a href="/chart">Charts</a>
+      <a href="/keitaro">Keitaro</a>
+      <a href="/apps">Moloko Spend</a>
+      <a href="/logout">Logout</a>
+
+      <!-- FILTER -->
+      <form method="GET">
+        From <input type="date" name="start" value="${start}">
+        To <input type="date" name="end" value="${end}">
+        <input type="hidden" name="theme" value="${theme}">
+        <button>Show</button>
+      </form>
+
+      <!-- GENERATE -->
+      <form method="POST">
+        Generate From <input type="date" name="start" value="${start}">
+        To <input type="date" name="end" value="${end}">
+        <button>Load from Unity</button>
+      </form>
+
+      <h2>Total Spend: $${total.toFixed(2)}</h2>
+
+      <table>
+        <tr>
+          <th>Date</th>
+          <th>App ID</th>
+          <th>App Name</th>
+          <th>Spend</th>
+        </tr>
+
+        ${reports.map(r => `
+          <tr>
+            <td>${r.date}</td>
+            <td>${r.app_id}</td>
+            <td>${r.app_name}</td>
+            <td>$${r.spend.toFixed(6)}</td>
+          </tr>
+        `).join("")}
+
+      </table>
+
+    </div>
+  `)
 })
 
 // ---------------- GENERATE REPORT ----------------
@@ -785,6 +981,9 @@ app.get("/keitaro", auth, async (req, res) => {
       <h1>Keitaro Dashboard (${dateFilter})</h1>
 
       <a href="/">Home</a>
+      <a href="/logs">Logs</a>
+      <a href="/chart">Charts</a>
+         <a href="/apps">Moloko Spend</a>
       <a href="/logout">Logout</a>
 
       <!-- FETCH -->
@@ -1227,6 +1426,8 @@ app.get("/game", auth, (req, res) => {
   `)
 })
 
+
+
 // ---------------- SERVER ----------------
 
 app.listen(PORT,()=>console.log("Server running http://localhost:"+PORT))
@@ -1314,3 +1515,165 @@ async function fetchRows(token,config,date){
  return data.rows||[]
 
 }
+
+async function fetchSpendByApp(token, date){
+
+ const resp = await fetch(
+  "https://api.moloco.cloud/cm/v1/analytics-detail",
+  {
+   method: "POST",
+   headers: {
+    "accept": "application/json",
+    "content-type": "application/json",
+    "Authorization": `Bearer ${token}`
+   },
+   body: JSON.stringify({
+    date_range: { start: date, end: date },
+    ad_account_id: AD_ACCOUNT_ID,
+    timezone: "UTC+3",
+    metrics: ["SPEND"],
+    dimensions: ["APP_OR_SITE_TITLE"]
+   })
+  }
+ )
+
+ const data = await resp.json()
+ return data.rows || []
+}
+
+app.post("/apps", auth, async (req, res) => {
+  const startDate = req.body.startDate || today()
+  const endDate = req.body.endDate || startDate
+
+  try {
+    const token = await getToken()
+
+    // 👉 список дат
+    const dates = []
+    let current = new Date(startDate)
+
+    while (current <= new Date(endDate)) {
+      dates.push(current.toISOString().slice(0, 10))
+      current.setDate(current.getDate() + 1)
+    }
+
+    // 👉 удалить старые данные
+    await prisma.appSpend.deleteMany({
+      where: {
+        date: {
+          gte: startDate,
+          lte: endDate
+        }
+      }
+    })
+
+    // 👉 собрать и сохранить
+    for (const date of dates) {
+      const rows = await fetchSpendByApp(token, date)
+
+      for (const r of rows) {
+        await prisma.appSpend.create({
+          data: {
+            date,
+            app_name: r.app?.title || "Unknown",
+            spend: Number(r.metric?.spend || 0)
+          }
+        })
+      }
+    }
+
+    res.redirect(`/apps?startDate=${startDate}&endDate=${endDate}`)
+
+  } catch (err) {
+    res.send("Apps save error: " + err.message)
+  }
+})
+
+// ---------------- PARSE CSV ----------------
+
+function parseCSV(text) {
+  text = text.replace(/^\uFEFF/, "")
+
+  const lines = text.trim().split("\n")
+  const headers = lines[0].split(",")
+
+  return lines.slice(1).map(line => {
+    const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
+
+    const obj = {}
+
+    headers.forEach((h, i) => {
+      obj[h.trim()] = values[i]?.replace(/^"|"$/g, "")
+    })
+
+    return obj
+  })
+}
+
+// ---------------- FETCH UNITY ----------------
+
+async function fetchUnityStats(start, end) {
+  const url = `https://services.api.unity.com/advertise/stats/v2/organizations/${UNITY_ORG_ID}/reports/acquisitions?start=${start}&end=${end}&scale=day&metrics=spend&breakdowns=app`
+
+  const resp = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Authorization": "Basic " + Buffer.from(
+        `${UNITY_USER}:${UNITY_PASS}`
+      ).toString("base64"),
+      "Accept": "text/csv"
+    }
+  })
+
+  const text = await resp.text()
+
+  if (!resp.ok) {
+    throw new Error(`Unity API Error ${resp.status}: ${text}`)
+  }
+
+  if (!text) {
+    throw new Error("Unity API returned empty response")
+  }
+
+  return parseCSV(text)
+}
+
+// ---------------- SAVE UNITY REPORT ----------------
+
+app.post("/unity", auth, async (req, res) => {
+  const start = req.body.start || today()
+  const end = req.body.end || start
+
+  try {
+    const rows = await fetchUnityStats(start, end)
+
+    const formatted = rows.map(r => ({
+      date: r["timestamp"],
+      app_id: r["app id"],
+      app_name: r["app name"],
+      spend: Number(r["spend"] || 0)
+    }))
+
+    // 👉 удалить старые данные за диапазон
+    await prisma.unityReport.deleteMany({
+      where: {
+        date: {
+          gte: start,
+          lte: end
+        }
+      }
+    })
+
+    // 👉 сохранить новые
+    for (const r of formatted) {
+      await prisma.unityReport.create({
+        data: r
+      })
+    }
+
+    res.redirect(`/unity?start=${start}&end=${end}`)
+
+  } catch (err) {
+    res.send("Unity save error: " + err.message)
+  }
+})
