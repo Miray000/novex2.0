@@ -21,7 +21,23 @@ model KeitaroReport {
   date      String
   campaign  String
   rows      Json
+  group     String?
   createdAt DateTime @default(now())
 }
 
- 
+ model UnityReport {
+  id        Int      @id @default(autoincrement())
+  date      String
+  app_id    String
+  app_name  String
+  spend     Float
+  createdAt DateTime @default(now())
+}
+
+model AppSpend {
+  id        Int      @id @default(autoincrement())
+  date      String
+  app_name  String
+  spend     Float
+  createdAt DateTime @default(now())
+}
