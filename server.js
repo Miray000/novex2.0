@@ -1619,7 +1619,7 @@ async function fetchSpendByApp(token, date) {
       body: JSON.stringify({
         date_range: { start: date, end: date },
         ad_account_id: AD_ACCOUNT_ID,
-        timezone: "UTC+2",
+        timezone: "UTC+3",
         metrics: ["SPEND"],
         dimensions: ["APP_OR_SITE_TITLE", "CAMPAIGN_TITLE", "CAMPAIGN_COUNTRY","AD_ACCOUNT_TITLE"]
       })
