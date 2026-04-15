@@ -31,6 +31,8 @@ model KeitaroReport {
   app_id    String
   app_name  String
   spend     Float
+  campaign_name  String?
+  country_unity String?
   createdAt DateTime @default(now())
 }
 
@@ -39,5 +41,8 @@ model AppSpend {
   date      String
   app_name  String
   spend     Float
+  campaign_name String?
+  country   String?
+  ad_account String?
   createdAt DateTime @default(now())
 }
