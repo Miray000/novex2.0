@@ -545,7 +545,6 @@ app.get("/apps", auth, async (req, res) => {
   const endDate = req.query.endDate || startDate
   const countryFilter = req.query.country || ""
 
-  // 👉 берем из БД
   const records = await prisma.appSpend.findMany({
     where: {
       date: {
@@ -558,7 +557,6 @@ app.get("/apps", auth, async (req, res) => {
     }
   })
 
-  // 👉 список дат
   const dates = []
   let current = new Date(startDate)
 
@@ -567,83 +565,83 @@ app.get("/apps", auth, async (req, res) => {
     current.setDate(current.getDate() + 1)
   }
 
-  // 👉 список стран (для dropdown)
-  const countries = [...new Set(records.map(r => r.country))]
+  const appData = {}
 
-  // 👉 структура
- const appData = {}
-
-records.forEach(r => {
-  if (!appData[r.app_name]) {
-    appData[r.app_name] = {
-      dates: {},
-      campaigns: new Map(),
-      adAccounts: new Set()
+  records.forEach(r => {
+    if (!appData[r.app_name]) {
+      appData[r.app_name] = {
+        dates: {},
+        campaigns: new Map(),
+        adAccounts: new Set()
+      }
     }
-  }
 
-  appData[r.app_name].dates[r.date] =
-    (appData[r.app_name].dates[r.date] || 0) + r.spend
+    appData[r.app_name].dates[r.date] =
+      (appData[r.app_name].dates[r.date] || 0) + r.spend
 
-  appData[r.app_name].campaigns.set(
-    r.campaign_name,
-    r.country || "Unknown"
-  )
+    appData[r.app_name].campaigns.set(
+      r.campaign_name,
+      r.country || "Unknown"
+    )
 
-  appData[r.app_name].adAccounts.add(
-    r.ad_account || "Unknown"
-  )
-})
-
-  function wrapText(str, n = 30) {
-  if (!str) return "—"   // или ""
-  return String(str).replace(new RegExp(`(.{${n}})`, "g"), "$1<br>")
-}
-  // 👉 сортировка
- const appTotals = Object.entries(appData).map(([app, obj]) => {
-  const total = Object.values(obj.dates).reduce((a, b) => a + b, 0)
-
-  return {
-    app,
-    total,
-    data: obj.dates,
-    campaigns: Array.from(obj.campaigns.entries()),
-    adAccounts: Array.from(obj.adAccounts)
-  }
-}).sort((a, b) => b.total - a.total)
-
-  // 👉 таблица header
- let header = `<tr><th>App</th><th>Ad Account</th><th>Campaigns</th>`
-dates.forEach(d => header += `<th>${d}</th>`)
-header += `<th>Total</th></tr>`
-
-  // 👉 строки
-let rowsHtml = appTotals.map(obj => {
-  let row = `<tr>`
-
-  row += `<td>${obj.app}</td>`
-
-  // 👉 ad account
-  row += `<td>${obj.adAccounts.join("<br>")}</td>`
-
-  // 👉 campaigns + country
-  row += `<td class="campaign">${
-    obj.campaigns.map(([name, country]) =>
-      `${wrapText(name || "Unknown")} 
-       <span style="color:#0ff">(${country || "—"})</span>`
-    ).join("<br>")
-  }</td>`
-
-  dates.forEach(d => {
-    const val = obj.data[d] || 0
-    row += `<td>$${val.toFixed(2)}</td>`
+    appData[r.app_name].adAccounts.add(
+      r.ad_account || "Unknown"
+    )
   })
 
-  row += `<td><b>$${obj.total.toFixed(2)}</b></td>`
-  row += `</tr>`
+  function wrapText(str, n = 30) {
+    if (!str) return "—"
+    return String(str).replace(new RegExp(`(.{${n}})`, "g"), "$1<br>")
+  }
 
-  return row
-}).join("")
+  const appTotals = Object.entries(appData)
+    .map(([app, obj]) => {
+      const total = Object.values(obj.dates).reduce((a, b) => a + b, 0)
+
+      return {
+        app,
+        total,
+        data: obj.dates,
+        campaigns: Array.from(obj.campaigns.entries()),
+        adAccounts: Array.from(obj.adAccounts)
+      }
+    })
+    .sort((a, b) => b.total - a.total)
+
+  let header = `<tr><th>App</th><th>Ad Account</th><th>Campaigns</th>`
+
+  dates.forEach(d => {
+    header += `<th>${d}</th>`
+  })
+
+  header += `<th>Total</th></tr>`
+
+  let rowsHtml = appTotals.map(obj => {
+    let row = `<tr>`
+
+    row += `<td>${obj.app}</td>`
+
+    row += `<td>${obj.adAccounts.join("<br>")}</td>`
+
+    row += `<td class="campaign">${
+      obj.campaigns
+        .map(
+          ([name, country]) =>
+            `${wrapText(name || "Unknown")} <span style="color:#0ff">(${country})</span>`
+        )
+        .join("<br>")
+    }</td>`
+
+    dates.forEach(d => {
+      const val = obj.data[d] || 0
+      row += `<td>$${val.toFixed(2)}</td>`
+    })
+
+    row += `<td><b>$${obj.total.toFixed(2)}</b></td>`
+    row += `</tr>`
+
+    return row
+  }).join("")
 
   const grandTotal = appTotals.reduce((sum, a) => sum + a.total, 0)
 
@@ -663,7 +661,7 @@ let rowsHtml = appTotals.map(obj => {
 
     <div class="container">
 
-      <h1>Spend by App (DB)</h1>
+      <h1>Spend by App (Moloco Overview)</h1>
 
       <a href="/">Home</a>
       <a href="/logs">Logs</a>
@@ -671,23 +669,20 @@ let rowsHtml = appTotals.map(obj => {
       <a href="/keitaro">Keitaro</a>
       <a href="/logout">Logout</a>
 
-      <!-- FILTER -->
       <form method="GET">
         From <input type="date" name="startDate" value="${startDate}">
         To <input type="date" name="endDate" value="${endDate}">
 
-        Country 
-      <select name="country">
-  <option value="">All</option>
-  <option value="AUS" ${countryFilter === "AUS" ? "selected" : ""}>AU</option>
-  <option value="CAN" ${countryFilter === "CAN" ? "selected" : ""}>CA</option>
-</select>
+        Country
+        <select name="country">
+          <option value="">All</option>
+          <option value="AUS" ${countryFilter === "AUS" ? "selected" : ""}>AU</option>
+          <option value="CAN" ${countryFilter === "CAN" ? "selected" : ""}>CA</option>
+        </select>
 
-        <input type="hidden" name="theme" value="${theme}">
         <button>Show</button>
       </form>
 
-      <!-- GENERATE -->
       <form method="POST">
         Generate From <input type="date" name="startDate" value="${startDate}">
         To <input type="date" name="endDate" value="${endDate}">
@@ -1608,7 +1603,7 @@ async function fetchRows(token,config,date){
 
 async function fetchSpendByApp(token, date) {
   const resp = await fetch(
-    "https://api.moloco.cloud/cm/v1/analytics-detail",
+    "https://api.moloco.cloud/cm/v1/analytics-overview",
     {
       method: "POST",
       headers: {
@@ -1617,11 +1612,19 @@ async function fetchSpendByApp(token, date) {
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify({
-        date_range: { start: date, end: date },
+        date_range: {
+          start: date,
+          end: date
+        },
+        type: "USER_ACQUISITION",
         ad_account_id: AD_ACCOUNT_ID,
-        timezone: "UTC+3",
-        metrics: ["SPEND"],
-        dimensions: ["APP_OR_SITE_TITLE", "CAMPAIGN_TITLE", "CAMPAIGN_COUNTRY","AD_ACCOUNT_TITLE"]
+        dimensions: [
+          "APP_OR_SITE_TITLE",
+          "CAMPAIGN_TITLE",
+          "CAMPAIGN_TARGET_COUNTRIES",
+          "AD_ACCOUNT_TITLE"
+        ],
+        metrics: ["SPEND"]
       })
     }
   )
@@ -1640,7 +1643,6 @@ app.post("/apps", auth, async (req, res) => {
   try {
     const token = await getToken()
 
-    // 👉 список дат
     const dates = []
     let current = new Date(startDate)
 
@@ -1649,7 +1651,7 @@ app.post("/apps", auth, async (req, res) => {
       current.setDate(current.getDate() + 1)
     }
 
-    // 👉 удалить старые данные
+    // удалить старые данные
     await prisma.appSpend.deleteMany({
       where: {
         date: {
@@ -1659,36 +1661,28 @@ app.post("/apps", auth, async (req, res) => {
       }
     })
 
-    // 👉 загрузка и сохранение
+    // загрузка + сохранение
     for (const date of dates) {
       const rows = await fetchSpendByApp(token, date)
 
-      for (const r of rows) {
-        await prisma.appSpend.create({
-         data: {
-    date,
-    app_name: r.app?.title || "Unknown",
-    campaign_name: r.campaign?.title || "Unknown",
+      await prisma.appSpend.createMany({
+        data: rows.map(r => ({
+          date,
 
-    country:
-      r.campaign?.country ||
-      r.dimension?.campaign_country ||
-      "Unknown",
+          app_name: r.app?.title || "Unknown",
 
-    ad_account:
-      r.ad_account?.title ||
-      r.dimension?.ad_account_title ||
-      "Unknown",
+          campaign_name: r.campaign?.title || "Unknown",
 
-    spend: Number(r.metric?.spend || 0)
-          }
-        })
-      }
+          country: r.campaign?.target_countries?.[0] || "Unknown",
+
+          ad_account: r.ad_account?.title || "Unknown",
+
+          spend: Number(r.metric?.spend || 0)
+        }))
+      })
     }
 
-    res.redirect(
-      `/apps?startDate=${startDate}&endDate=${endDate}`
-    )
+    res.redirect(`/apps?startDate=${startDate}&endDate=${endDate}`)
   } catch (err) {
     res.send("Apps save error: " + err.message)
   }
