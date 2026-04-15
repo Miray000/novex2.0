@@ -531,11 +531,19 @@ function buildTable(rows, percent = 0) {
 
 // ---------------- APPS ----------------
 
+// 👉 helper для переноса текста
+function wrapText(str, n = 30) {
+  return str.replace(new RegExp(`(.{${n}})`, "g"), "$1<br>")
+}
+
+// ---------------- GET ----------------
+
 app.get("/apps", auth, async (req, res) => {
   const theme = applyTheme(req, res)
 
   const startDate = req.query.startDate || today()
   const endDate = req.query.endDate || startDate
+  const countryFilter = req.query.country || ""
 
   // 👉 берем из БД
   const records = await prisma.appSpend.findMany({
@@ -543,7 +551,10 @@ app.get("/apps", auth, async (req, res) => {
       date: {
         gte: startDate,
         lte: endDate
-      }
+      },
+      ...(countryFilter && {
+        country: countryFilter
+      })
     }
   })
 
@@ -556,42 +567,99 @@ app.get("/apps", auth, async (req, res) => {
     current.setDate(current.getDate() + 1)
   }
 
-  // 👉 структура
-  const appData = {}
+  // 👉 список стран (для dropdown)
+  const countries = [...new Set(records.map(r => r.country))]
 
-  records.forEach(r => {
-    if (!appData[r.app_name]) appData[r.app_name] = {}
-    appData[r.app_name][r.date] = r.spend
+  // 👉 структура
+ const appData = {}
+
+records.forEach(r => {
+  if (!appData[r.app_name]) {
+    appData[r.app_name] = {
+      dates: {},
+      campaigns: new Map(),
+      adAccounts: new Set()
+    }
+  }
+
+  appData[r.app_name].dates[r.date] =
+    (appData[r.app_name].dates[r.date] || 0) + r.spend
+
+  appData[r.app_name].campaigns.set(
+    r.campaign_name,
+    r.country || "Unknown"
+  )
+
+  appData[r.app_name].adAccounts.add(
+    r.ad_account || "Unknown"
+  )
+})
+
+  function wrapText(str, n = 30) {
+  if (!str) return "—"   // или ""
+  return String(str).replace(new RegExp(`(.{${n}})`, "g"), "$1<br>")
+}
+  // 👉 сортировка
+ const appTotals = Object.entries(appData).map(([app, obj]) => {
+  const total = Object.values(obj.dates).reduce((a, b) => a + b, 0)
+
+  return {
+    app,
+    total,
+    data: obj.dates,
+    campaigns: Array.from(obj.campaigns.entries()),
+    adAccounts: Array.from(obj.adAccounts)
+  }
+}).sort((a, b) => b.total - a.total)
+
+  // 👉 таблица header
+ let header = `<tr><th>App</th><th>Ad Account</th><th>Campaigns</th>`
+dates.forEach(d => header += `<th>${d}</th>`)
+header += `<th>Total</th></tr>`
+
+  // 👉 строки
+let rowsHtml = appTotals.map(obj => {
+  let row = `<tr>`
+
+  row += `<td>${obj.app}</td>`
+
+  // 👉 ad account
+  row += `<td>${obj.adAccounts.join("<br>")}</td>`
+
+  // 👉 campaigns + country
+  row += `<td class="campaign">${
+    obj.campaigns.map(([name, country]) =>
+      `${wrapText(name || "Unknown")} 
+       <span style="color:#0ff">(${country || "—"})</span>`
+    ).join("<br>")
+  }</td>`
+
+  dates.forEach(d => {
+    const val = obj.data[d] || 0
+    row += `<td>$${val.toFixed(2)}</td>`
   })
 
-  // 👉 сортировка
-  const appTotals = Object.entries(appData).map(([app, data]) => {
-    const total = Object.values(data).reduce((a, b) => a + b, 0)
-    return { app, total, data }
-  }).sort((a, b) => b.total - a.total)
+  row += `<td><b>$${obj.total.toFixed(2)}</b></td>`
+  row += `</tr>`
 
-  // 👉 таблица
-  let header = `<tr><th>App</th>`
-  dates.forEach(d => header += `<th>${d}</th>`)
-  header += `<th>Total</th></tr>`
-
-  let rowsHtml = appTotals.map(obj => {
-    let row = `<tr><td>${obj.app}</td>`
-
-    dates.forEach(d => {
-      const val = obj.data[d] || 0
-      row += `<td>$${val.toFixed(2)}</td>`
-    })
-
-    row += `<td><b>$${obj.total.toFixed(2)}</b></td></tr>`
-    return row
-  }).join("")
+  return row
+}).join("")
 
   const grandTotal = appTotals.reduce((sum, a) => sum + a.total, 0)
 
   res.send(`
     ${styles(theme)}
     ${themeToggle(theme)}
+
+    <style>
+      td.campaign {
+        max-width: 260px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+    </style>
 
     <div class="container">
 
@@ -601,13 +669,20 @@ app.get("/apps", auth, async (req, res) => {
       <a href="/logs">Logs</a>
       <a href="/chart">Charts</a>
       <a href="/keitaro">Keitaro</a>
-    <!-- <a href="/unity">Unity</a>  -->
       <a href="/logout">Logout</a>
 
       <!-- FILTER -->
       <form method="GET">
         From <input type="date" name="startDate" value="${startDate}">
         To <input type="date" name="endDate" value="${endDate}">
+
+        Country 
+      <select name="country">
+  <option value="">All</option>
+  <option value="AUS" ${countryFilter === "AUS" ? "selected" : ""}>AU</option>
+  <option value="CAN" ${countryFilter === "CAN" ? "selected" : ""}>CA</option>
+</select>
+
         <input type="hidden" name="theme" value="${theme}">
         <button>Show</button>
       </form>
@@ -629,6 +704,7 @@ app.get("/apps", auth, async (req, res) => {
     </div>
   `)
 })
+
 
 // ---------------- CHARTS ----------------
 
@@ -860,6 +936,9 @@ app.get("/unity", auth, async (req, res) => {
           <th>Date</th>
           <th>App ID</th>
           <th>App Name</th>
+          <th>Campaign</th>
+          <th>Country</th>
+          <th>Naming</th>
           <th>Spend</th>
         </tr>
 
@@ -868,6 +947,8 @@ app.get("/unity", auth, async (req, res) => {
             <td>${r.date}</td>
             <td>${r.app_id}</td>
             <td>${r.app_name}</td>
+            <td>${r.campaign_name}</td>
+            <td>${r.country_unity}</td>
             <td>$${r.spend.toFixed(6)}</td>
           </tr>
         `).join("")}
@@ -970,6 +1051,7 @@ app.get("/keitaro", auth, async (req, res) => {
       <td>${m.clicks ?? 0}</td>
       <td>${m.conversions ?? 0}</td>
       <td>${m.revenue ?? 0}</td>
+      <td>${m.cr ?? 0}</td>
     </tr>`
   }).join("")
 
@@ -1066,6 +1148,11 @@ app.get("/keitaro", auth, async (req, res) => {
               Revenue
             </a>
           </th>
+            <th>
+            <a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&group=${groupFilter}&sort=cr&dir=${sortMetric==='cr'?nextDir(sortDir):'desc'}">
+              cr
+            </a>
+          </th>
         </tr>
 
         ${tableRows}
@@ -1091,7 +1178,8 @@ app.post("/keitaro/fetch", auth, async (req, res) => {
       "conversions",
       "revenue",
       "leads",   // 👈 добавили
-      "sales"    // 👈 добавили
+      "sales",    // 👈 добавили
+      "cr"
     ],
     limit: 1000
   }
@@ -1516,30 +1604,34 @@ async function fetchRows(token,config,date){
 
 }
 
-async function fetchSpendByApp(token, date){
+// ---------------- FETCH ----------------
 
- const resp = await fetch(
-  "https://api.moloco.cloud/cm/v1/analytics-detail",
-  {
-   method: "POST",
-   headers: {
-    "accept": "application/json",
-    "content-type": "application/json",
-    "Authorization": `Bearer ${token}`
-   },
-   body: JSON.stringify({
-    date_range: { start: date, end: date },
-    ad_account_id: AD_ACCOUNT_ID,
-    timezone: "UTC+3",
-    metrics: ["SPEND"],
-    dimensions: ["APP_OR_SITE_TITLE"]
-   })
-  }
- )
+async function fetchSpendByApp(token, date) {
+  const resp = await fetch(
+    "https://api.moloco.cloud/cm/v1/analytics-detail",
+    {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        date_range: { start: date, end: date },
+        ad_account_id: AD_ACCOUNT_ID,
+        timezone: "UTC+2",
+        metrics: ["SPEND"],
+        dimensions: ["APP_OR_SITE_TITLE", "CAMPAIGN_TITLE", "CAMPAIGN_COUNTRY","AD_ACCOUNT_TITLE"]
+      })
+    }
+  )
 
- const data = await resp.json()
- return data.rows || []
+  const data = await resp.json()
+  return data.rows || []
 }
+
+
+// ---------------- POST ----------------
 
 app.post("/apps", auth, async (req, res) => {
   const startDate = req.body.startDate || today()
@@ -1567,23 +1659,36 @@ app.post("/apps", auth, async (req, res) => {
       }
     })
 
-    // 👉 собрать и сохранить
+    // 👉 загрузка и сохранение
     for (const date of dates) {
       const rows = await fetchSpendByApp(token, date)
 
       for (const r of rows) {
         await prisma.appSpend.create({
-          data: {
-            date,
-            app_name: r.app?.title || "Unknown",
-            spend: Number(r.metric?.spend || 0)
+         data: {
+    date,
+    app_name: r.app?.title || "Unknown",
+    campaign_name: r.campaign?.title || "Unknown",
+
+    country:
+      r.campaign?.country ||
+      r.dimension?.campaign_country ||
+      "Unknown",
+
+    ad_account:
+      r.ad_account?.title ||
+      r.dimension?.ad_account_title ||
+      "Unknown",
+
+    spend: Number(r.metric?.spend || 0)
           }
         })
       }
     }
 
-    res.redirect(`/apps?startDate=${startDate}&endDate=${endDate}`)
-
+    res.redirect(
+      `/apps?startDate=${startDate}&endDate=${endDate}`
+    )
   } catch (err) {
     res.send("Apps save error: " + err.message)
   }
@@ -1613,7 +1718,7 @@ function parseCSV(text) {
 // ---------------- FETCH UNITY ----------------
 
 async function fetchUnityStats(start, end) {
-  const url = `https://services.api.unity.com/advertise/stats/v2/organizations/${UNITY_ORG_ID}/reports/acquisitions?start=${start}&end=${end}&scale=day&metrics=spend&breakdowns=app`
+  const url = `https://services.api.unity.com/advertise/stats/v2/organizations/${UNITY_ORG_ID}/reports/acquisitions?start=${start}&end=${end}&scale=day&metrics=spend&breakdowns=app,campaign,country`
 
   const resp = await fetch(url, {
     method: "GET",
@@ -1651,6 +1756,8 @@ app.post("/unity", auth, async (req, res) => {
       date: r["timestamp"],
       app_id: r["app id"],
       app_name: r["app name"],
+      campaign_name: r["campaign name"],
+      country_unity: r["country"],
       spend: Number(r["spend"] || 0)
     }))
 
