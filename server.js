@@ -5,11 +5,13 @@ import cookieParser from "cookie-parser"
 import { PrismaClient } from "./generated/prisma/client.js"
 import { PrismaPg } from "@prisma/adapter-pg"
 
+
 const connectionString = process.env.DATABASE_URL
 const adapter = new PrismaPg({ connectionString })
 const prisma = new PrismaClient({ adapter })
 
 const app = express()
+app.use(express.static("public"))
 const PORT = process.env.PORT || 3000
 
 // ---------------- CONFIG ----------------
@@ -41,8 +43,12 @@ const REPORT_CONFIGS=[
 {name:"Fortune Fire Dragon",product_id:"sI5tlgQdqUK2rban"},
 ]
 
+
+
 app.use(express.urlencoded({extended:true}))
 app.use(cookieParser())
+
+
 
 // ---------------- THEME ----------------
 
@@ -107,6 +113,10 @@ function styles(theme="dark"){
   const buttonHov=dark?"#00cccc":"#C4B4E0"
 
  return `
+  <head>
+ <meta charset="UTF-8">
+ <title>Dashboard</title>
+ <link rel="icon" href="https://i.ibb.co/3yWsvJ9C/favicon.jpg">
  <style>
 
  body{
@@ -128,8 +138,17 @@ function styles(theme="dark"){
  margin-right:15px;
  }
 
+.logs_h{
+border:2px solid;
+}
+
+ .logs_data{
+ text-align:center;
+ }
+
 .keitaro_hre{
 color:${buttonTex};
+margin:0 auto;
 }
 
  button{
@@ -148,7 +167,7 @@ color:${buttonTex};
  input,select{
  padding:8px;
  margin:5px;
- border-radius:6px;
+ border-radius:25px;
  border:1px solid ${inputBorder};
  }
 
@@ -206,6 +225,7 @@ display: flex;
     height: 100%;
 }
  </style>
+ </head>
  `
 }
 
@@ -343,6 +363,9 @@ app.get("/", auth, async (req, res) => {
   // Рендер страницы
   res.send(`${styles(theme)}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<head>
+
+</head>
 <div class="container">
 ${themeToggle(theme)}
 <a href="/logs">Logs</a>
@@ -447,14 +470,14 @@ app.get("/logs", auth, async (req, res) => {
     <button>Filter</button>
   </form>
   <table>
-    <tr><th>Date</th><th>Product</th><th>Rows</th><th>Open</th></tr>`
+    <tr><th class="logs_h">Date</th><th class="logs_h">Product</th><th class="logs_h">Rows</th><th class="logs_h">Open</th></tr>`
 
   reports.forEach(r => {
     html += `<tr>
-      <td>${r.date}</td>
-      <td>${r.product}</td>
-      <td>${parseRows(r.rows).length}</td>
-      <td><a href="/report?id=${r.id}&percent=${percent}&theme=${theme}">Open</a></td>
+      <td class="logs_data">${r.date}</td>
+      <td class="logs_data">${r.product}</td>
+      <td class="logs_data">${parseRows(r.rows).length}</td>
+      <td class="logs_data"><a href="/report?id=${r.id}&percent=${percent}&theme=${theme}">Open</a></td>
     </tr>`
   })
 
@@ -608,16 +631,16 @@ app.get("/apps", auth, async (req, res) => {
     })
     .sort((a, b) => b.total - a.total)
 
-  let header = `<tr><th>App</th><th>Ad Account</th><th>Campaigns</th>`
+  let header = `<tr><th class="logs_h">App</th><th class="logs_h">Ad Account</th><th class="logs_h">Campaigns</th>`
 
   dates.forEach(d => {
-    header += `<th>${d}</th>`
+    header += `<th class="logs_h">${d}</th>`
   })
 
-  header += `<th>Total</th></tr>`
+  header += `<th class="logs_h">Total</th></tr>`
 
   let rowsHtml = appTotals.map(obj => {
-    let row = `<tr>`
+    let row = `<tr class="logs_data">`
 
     row += `<td>${obj.app}</td>`
 
@@ -660,15 +683,15 @@ app.get("/apps", auth, async (req, res) => {
     </style>
 
     <div class="container">
-
-      <h1>Spend by App (Moloco Overview)</h1>
-
+  <div class="topbar">
       <a href="/">Home</a>
       <a href="/logs">Logs</a>
       <a href="/chart">Charts</a>
       <a href="/keitaro">Keitaro</a>
       <a href="/logout">Logout</a>
-
+    </div>
+      <h1>Spend by App (Moloco Overview)</h1>
+  
       <form method="GET">
         From <input type="date" name="startDate" value="${startDate}">
         To <input type="date" name="endDate" value="${endDate}">
@@ -878,13 +901,26 @@ app.get("/unity", auth, async (req, res) => {
 
   const start = req.query.start || today()
   const end = req.query.end || start
+  const country = req.query.country || ""
+
+  // 👉 получаем список уникальных стран
+  const countriesRaw = await prisma.unityReport.findMany({
+    select: { country_unity: true },
+    distinct: ["country_unity"],
+    orderBy: { country_unity: "asc" }
+  })
+
+  const countries = countriesRaw.map(c => c.country_unity).filter(Boolean)
 
   const reports = await prisma.unityReport.findMany({
     where: {
       date: {
         gte: start,
         lte: end
-      }
+      },
+      ...(country && {
+        country_unity: country
+      })
     },
     orderBy: [
       { date: "asc" },
@@ -899,20 +935,32 @@ app.get("/unity", auth, async (req, res) => {
     ${themeToggle(theme)}
 
     <div class="container">
-
-      <h1>Unity Reports</h1>
-
+<div class="topbar">
       <a href="/">Home</a>
       <a href="/logs">Logs</a>
       <a href="/chart">Charts</a>
       <a href="/keitaro">Keitaro</a>
       <a href="/apps">Moloko Spend</a>
       <a href="/logout">Logout</a>
+      </div>
+      <h1>Unity Reports</h1>
+
 
       <!-- FILTER -->
       <form method="GET">
         From <input type="date" name="start" value="${start}">
         To <input type="date" name="end" value="${end}">
+
+        Country 
+        <select name="country">
+          <option value="">All</option>
+          ${countries.map(c => `
+            <option value="${c}" ${c === country ? "selected" : ""}>
+              ${c}
+            </option>
+          `).join("")}
+        </select>
+
         <input type="hidden" name="theme" value="${theme}">
         <button>Show</button>
       </form>
@@ -924,21 +972,22 @@ app.get("/unity", auth, async (req, res) => {
         <button>Load from Unity</button>
       </form>
 
+      ${country ? `<p><b>Filter:</b> Country = ${country}</p>` : ""}
+
       <h2>Total Spend: $${total.toFixed(2)}</h2>
 
       <table>
         <tr>
-          <th>Date</th>
-          <th>App ID</th>
-          <th>App Name</th>
-          <th>Campaign</th>
-          <th>Country</th>
-          <th>Naming</th>
-          <th>Spend</th>
+          <th class="logs_h">Date</th>
+          <th class="logs_h">App ID</th>
+          <th class="logs_h">App Name</th>
+          <th class="logs_h">Campaign</th>
+          <th class="logs_h">Country</th>
+          <th class="logs_h">Spend</th>
         </tr>
 
         ${reports.map(r => `
-          <tr>
+          <tr class="logs_data">
             <td>${r.date}</td>
             <td>${r.app_id}</td>
             <td>${r.app_name}</td>
@@ -1038,7 +1087,7 @@ app.get("/keitaro", auth, async (req, res) => {
   let tableRows = reports.map(r => {
     const m = r.rows || {}
 
-    return `<tr>
+    return `<tr class="logs_data">
       <td>${r.campaign}</td>
       <td>${r.group || "-"}</td>
       <td>${m.leads ?? 0}</td>
@@ -1053,15 +1102,18 @@ app.get("/keitaro", auth, async (req, res) => {
   res.send(`
     ${styles(theme)}
     ${themeToggle(theme)}
-
+   
     <div class="container">
-      <h1>Keitaro Dashboard (${dateFilter})</h1>
-
-      <a href="/">Home</a>
+     <div class="topbar">
+  <a href="/">Home</a>
       <a href="/logs">Logs</a>
       <a href="/chart">Charts</a>
          <a href="/apps">Moloko Spend</a>
       <a href="/logout">Logout</a>
+      </div>
+      <h1>Keitaro Dashboard (${dateFilter})</h1>
+
+    
 
       <!-- FETCH -->
       <form method="POST" action="/keitaro/fetch">
@@ -1111,39 +1163,39 @@ app.get("/keitaro", auth, async (req, res) => {
       <h2>Campaigns</h2>
       <table>
         <tr>
-          <th>Campaign</th>
-          <th>Group</th>
+          <th class="logs_h">Campaign</th>
+          <th class="logs_h">Group</th>
 
-          <th>
+          <th class="logs_h">
             <a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&group=${groupFilter}&sort=leads&dir=${sortMetric==='leads'?nextDir(sortDir):'desc'}">
               Leads
             </a>
           </th>
 
-          <th>
+          <th class="logs_h">
             <a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&group=${groupFilter}&sort=sales&dir=${sortMetric==='sales'?nextDir(sortDir):'desc'}">
               Sales
             </a>
           </th>
 
-          <th>
+          <th class="logs_h">
             <a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&group=${groupFilter}&sort=clicks&dir=${sortMetric==='clicks'?nextDir(sortDir):'desc'}">
               Clicks
             </a>
           </th>
 
-          <th>
+          <th class="logs_h">
             <a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&group=${groupFilter}&sort=conversions&dir=${sortMetric==='conversions'?nextDir(sortDir):'desc'}">
               Conversions
             </a>
           </th>
 
-          <th>
+          <th class="logs_h">
             <a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&group=${groupFilter}&sort=revenue&dir=${sortMetric==='revenue'?nextDir(sortDir):'desc'}">
               Revenue
             </a>
           </th>
-            <th>
+            <th class="logs_h">
             <a class="keitaro_hre" href="?date=${dateFilter}&timezone=${timezone}&group=${groupFilter}&sort=cr&dir=${sortMetric==='cr'?nextDir(sortDir):'desc'}">
               cr
             </a>
@@ -1709,6 +1761,7 @@ function parseCSV(text) {
   })
 }
 
+
 // ---------------- FETCH UNITY ----------------
 
 async function fetchUnityStats(start, end) {
@@ -1737,6 +1790,7 @@ async function fetchUnityStats(start, end) {
   return parseCSV(text)
 }
 
+
 // ---------------- SAVE UNITY REPORT ----------------
 
 app.post("/unity", auth, async (req, res) => {
@@ -1755,7 +1809,7 @@ app.post("/unity", auth, async (req, res) => {
       spend: Number(r["spend"] || 0)
     }))
 
-    // 👉 удалить старые данные за диапазон
+    // удалить старые данные за диапазон
     await prisma.unityReport.deleteMany({
       where: {
         date: {
@@ -1765,7 +1819,7 @@ app.post("/unity", auth, async (req, res) => {
       }
     })
 
-    // 👉 сохранить новые
+    // сохранить новые
     for (const r of formatted) {
       await prisma.unityReport.create({
         data: r
