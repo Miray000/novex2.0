@@ -372,6 +372,7 @@ ${themeToggle(theme)}
 <a href="/chart">Charts</a>
 <a href="/keitaro">Keitaro</a>
 <a href="/apps">Moloko Spend</a>
+<a href="/unity">Unity Spend</a>
 <a href="/logout">Logout</a>
 
 
@@ -450,7 +451,7 @@ app.get("/logs", auth, async (req, res) => {
 
   let html = `${styles(theme)}<div class="container">
   ${themeToggle(theme, `date=${date}&product=${product}&percent=${percent}`)}
-    <div class="topbar"><a href="/">Home</a><a href="/chart">Charts</a><a href="/keitaro">Keitaro</a><a href="/apps">Moloko Spend</a><a href="/logout">Logout</a></div>
+    <div class="topbar"><a href="/">Home</a><a href="/chart">Charts</a><a href="/keitaro">Keitaro</a><a href="/apps">Moloko Spend</a><a href="/unity">Unity Spend</a><a href="/logout">Logout</a></div>
   <h1>Saved Reports</h1>
 
   <form method="GET">
@@ -688,6 +689,7 @@ app.get("/apps", auth, async (req, res) => {
       <a href="/logs">Logs</a>
       <a href="/chart">Charts</a>
       <a href="/keitaro">Keitaro</a>
+      <a href="/unity">Unity Spend</a>
       <a href="/logout">Logout</a>
     </div>
       <h1>Spend by App (Moloco Overview)</h1>
@@ -840,6 +842,7 @@ app.get("/chart",auth,async(req,res)=>{
  <a href="/logs">Logs</a>
  <a href="/keitaro">Keitaro</a>
  <a href="/apps">Moloko Spend</a>
+ <a href="/unity">Unity Spend</a>
  <a href="/logout">Logout</a>
  <h1>Charts</h1>
 
@@ -1108,7 +1111,8 @@ app.get("/keitaro", auth, async (req, res) => {
   <a href="/">Home</a>
       <a href="/logs">Logs</a>
       <a href="/chart">Charts</a>
-         <a href="/apps">Moloko Spend</a>
+         <a href="/apps">Moloko Spend</a
+         <a href="/unity">Unity Spend</a>
       <a href="/logout">Logout</a>
       </div>
       <h1>Keitaro Dashboard (${dateFilter})</h1>
