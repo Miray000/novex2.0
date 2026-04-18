@@ -65,7 +65,7 @@ function applyTheme(req,res){
 function themeToggle(theme,params=""){
 
  if(theme==="dark"){
-  return `<div class="theme-toggle"><a href="?${params}&theme=light"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="orange">
+  return `<!-- <div class="theme-toggle"><a href="?${params}&theme=light"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="orange">
   <circle cx="12" cy="12" r="5"/>
   <g stroke="orange" stroke-width="2">
     <line x1="12" y1="1" x2="12" y2="4"/>
@@ -77,12 +77,12 @@ function themeToggle(theme,params=""){
     <line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/>
     <line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/>
   </g>
-</svg></a></div>`
+</svg></a></div> -->`
  }
 
- return `<div class="theme-toggle"><a href="?${params}&theme=dark"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="yellow">
+ return `<!-- <div class="theme-toggle"><a href="?${params}&theme=dark"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="yellow">
   <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"/>
-</svg></a></div>`
+</svg></a></div> -->`
 
 }
 
@@ -108,9 +108,9 @@ function styles(theme="dark"){
  const thBg=dark?"#0ff":"#B19CD9"
  const thColor=dark?"black":"white"
  const inputBorder=dark?"#444":"#ccc"
- const buttonBg=dark?"#0ff":"#B19CD9"
- const buttonTex=dark?"black":"white"
-  const buttonHov=dark?"#00cccc":"#C4B4E0"
+ const buttonBg=dark?"rgb(52 49 49)":"#B19CD9"
+ const buttonTex=dark?"#0ff":"white"
+  const buttonHov=dark?"rgb(52 49 49)":"#C4B4E0"
 
  return `
   <head>
@@ -118,18 +118,23 @@ function styles(theme="dark"){
  <title>Dashboard</title>
  <link rel="icon" href="https://i.ibb.co/3yWsvJ9C/favicon.jpg">
  <style>
-
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap');
  body{
- font-family:Arial;
+ 
  background:${bg};
  color:${text};
  margin:0;
  padding:40px;
+ font-family: "Orbitron", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: normal;
  }
 
  .container{
  max-width:1200px;
  margin:auto;
+ width:70%;
  }
 
  a{
@@ -140,17 +145,41 @@ function styles(theme="dark"){
 
 .logs_h{
 border:2px solid;
+font-family: "Orbitron", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: normal;
 }
 
  .logs_data{
  text-align:center;
+ font-family: "Orbitron", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: normal;
  }
 
 .keitaro_hre{
 color:${buttonTex};
 margin:0 auto;
 }
+form{
+font-family: "Orbitron", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: normal;
+}
 
+h1{
+font-family: "Orbitron", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: normal;
+    text-shadow: 
+    0 0 5px #0ff,
+    0 0 10px #0ff,
+    0 0 20px #0ff;
+}
  button{
  background:${buttonBg};
  border:none;
@@ -158,12 +187,23 @@ margin:0 auto;
  border-radius:8px;
  cursor:pointer;
  color:${buttonTex};
+ font-family: "Orbitron", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: normal;
  }
 
  button:hover{
  background:${buttonHov};
+ text-shadow: 0 0 5px #0ff, 0 0 10px #0ff, 0 0 20px #0ff;
  }
 
+ h2{
+ font-family: "Orbitron", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: normal;
+ }
  input,select{
  padding:8px;
  margin:5px;
@@ -189,21 +229,74 @@ margin:0 auto;
  border-bottom:1px solid ${inputBorder};
  }
 
+ .grid{
+ display:grid;
+ grid-template-columns:200px 2fr;
+ }
+
+ .grid-template{
+     display: flex;
+    flex-direction: column;
+    justify-content: center;
+    row-gap: 40px;
+ }
  .stats{
  display:grid;
  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
  gap:20px;
  margin-bottom:30px;
+ 
  }
 
+ label{
+ font-family: "Orbitron", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: normal;
+ }
  .stat{
  background:${tableBg};
  border:1px solid ${link};
  padding:20px;
  border-radius:12px;
  text-align:center;
+ font-family: "Orbitron", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: normal;
  }
 
+ .sil{
+ font-family: "Orbitron", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: normal;
+ background: rgb(52 49 49);
+    padding: 10px 10px;
+    border-radius: 20px;
+    }
+
+    .sil::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  width: 0%;
+  height: 2px;
+  background: #0ff;
+  box-shadow: 0 0 8px #0ff;
+  transition: width 0.3s ease;
+}
+
+.sil:hover{
+ text-shadow: 
+    0 0 5px #0ff,
+    0 0 10px #0ff,
+    0 0 20px #0ff;
+transform: scale(1.05);
+border:1px solid #0ff;
+
+}
  .theme-toggle{
  position:fixed;
  top:20px;
@@ -214,6 +307,26 @@ display:flex;
 justify-content:center;
 text-align:center;
 }
+
+.tainer{
+display: flex;
+    flex-direction: column;
+    row-gap: 20px;
+    position: fixed;
+    justify-content: unset;
+    top: 0px;
+}
+
+.mizi{
+display: flex;
+justify-content: center;
+}
+
+.mage{
+width: 50%;
+height:50%;
+margin:0 auto:
+}
 .zag-log{
 text-align:center;
 }
@@ -223,6 +336,40 @@ display: flex;
     align-items: center;
     justify-content: center;
     height: 100%;
+}
+
+.date-input {
+  padding: 10px 14px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background-color: #1a1a1a;
+  color: #eee;
+  font-size: 14px;
+  outline: none;
+  transition: 0.2s;
+  font-family: "Orbitron", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: normal;
+}
+
+.date-input:hover {
+  border-color: #0ff;
+  text-shadow: 
+    0 0 5px #0ff,
+    0 0 10px #0ff,
+    0 0 20px #0ff;
+}
+
+.date-input:focus {
+  border-color: #888;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
+}
+
+/* Иконка календаря (Chrome) */
+.date-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
 }
  </style>
  </head>
@@ -366,27 +513,35 @@ app.get("/", auth, async (req, res) => {
 <head>
 
 </head>
+<div class="grid">
+<div class="grid-template">
+<div class="tainer">
+<a class="mizi" href="/">
+<img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
+</a>
+<a class="sil" href="/logs">Logs</a>
+<a class="sil" href="/chart">Charts</a>
+<a class="sil" href="/keitaro">Keitaro</a>
+<a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/logout">Logout</a>
+</div>
+</div>
 <div class="container">
 ${themeToggle(theme)}
-<a href="/logs">Logs</a>
-<a href="/chart">Charts</a>
-<a href="/keitaro">Keitaro</a>
-<a href="/apps">Moloko Spend</a>
-<a href="/unity">Unity Spend</a>
-<a href="/logout">Logout</a>
+
 
 
 <h1>Moloco Dashboard</h1>
 
 <form>
-Date <input type="date" name="date" value="${selectedDate}">
-Product <select name="product">${productOptions}</select>
+Date <input class="date-input" type="date" name="date" value="${selectedDate}">
+Product <select class="date-input" name="product">${productOptions}</select>
 <input type="hidden" name="theme" value="${theme}">
 <button>Show</button>
 </form>
 
 <form method="POST">
-Generate report <input type="date" name="reportDate" value="${selectedDate}">
+Generate report <input class="date-input" type="date" name="reportDate" value="${selectedDate}">
 <button>Generate</button>
 </form>
 
@@ -406,6 +561,7 @@ Generate report <input type="date" name="reportDate" value="${selectedDate}">
 <h2>Installs Last 7 Days</h2>
 <canvas id="chart" style="background:white; padding:10px; border-radius:10px;"></canvas>
 </div>
+
 
 <script>
 const ctx = document.getElementById("chart").getContext("2d")
@@ -434,6 +590,7 @@ document.addEventListener("keydown", (e)=>{
   if(secret.length > 10) secret = secret.slice(-10)
 })
 </script>
+</div>
 `)
 })
 // ---------------- LOGS ----------------
@@ -449,16 +606,30 @@ app.get("/logs", auth, async (req, res) => {
 
   const reports = await prisma.report.findMany({ where, orderBy: { date: "desc" } })
 
-  let html = `${styles(theme)}<div class="container">
+  
+  let html = `${styles(theme)}<div class="grid">
+<div class="grid-template">
+<div class="tainer">
+<a class="mizi" href="/">
+<img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
+</a>
+<a class="sil" href="/logs">Logs</a>
+<a class="sil" href="/chart">Charts</a>
+<a class="sil" href="/keitaro">Keitaro</a>
+<a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/logout">Logout</a>
+</div>
+</div>
+<div><div class="container">
   ${themeToggle(theme, `date=${date}&product=${product}&percent=${percent}`)}
-    <div class="topbar"><a href="/">Home</a><a href="/chart">Charts</a><a href="/keitaro">Keitaro</a><a href="/apps">Moloko Spend</a><a href="/unity">Unity Spend</a><a href="/logout">Logout</a></div>
+
   <h1>Saved Reports</h1>
 
   <form method="GET">
-    <label>Дата</label>
-    <input type="date" name="date" value="${date}">
+   <label> Дата </label>
+    <input type="date" class="date-input" name="date" value="${date}">
     <label>Додаток</label>
-    <select name="product">
+    <select class="date-input" name="product">
       <option value="">All</option>
       <option ${product === "Greek" ? "selected" : ""}>Greek</option>
       <option ${product === "777 Spark" ? "selected" : ""}>777 Spark</option>
@@ -466,7 +637,7 @@ app.get("/logs", auth, async (req, res) => {
       <option ${product === "Royal Fruits Tap" ? "selected" : ""}>Royal Fruits Tap</option>
     </select>
     <label>-% спенду</label>
-    <input type="number" name="percent" value="${percent}" placeholder="% spend">
+    <input class="date-input" type="number" name="percent" value="${percent}" placeholder="% spend">
     <input type="hidden" name="theme" value="${theme}">
     <button>Filter</button>
   </form>
@@ -482,7 +653,7 @@ app.get("/logs", auth, async (req, res) => {
     </tr>`
   })
 
-  html += "</table></div>"
+  html += "</table></div></div>"
   res.send(html)
 })
 
@@ -494,12 +665,24 @@ app.get("/report", auth, async (req, res) => {
   const report = await prisma.report.findUnique({ where: { id } })
   if (!report) return res.send("Not found")
 
-  res.send(`${styles(theme)}<div class="container">
+  res.send(`${styles(theme)}
+  <div class="grid">
+<div class="grid-template">
+<div class="tainer">
+<a class="mizi" href="/">
+<img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
+</a>
+<a class="sil" href="/">Back</a>
+<a class="sil" href="/logout">Logout</a>
+
+</div>
+</div>
+  <div class="container">
     ${themeToggle(theme, `id=${id}&percent=${percent}`)}
     <h1>${report.product} (${report.date})</h1>
-    <div class="topbar"><a href="/logs?theme=${theme}">Back</a><a href="/logout">Logout</a></div>
+    
     ${buildTable(report.rows, percent)}
-  </div>`)
+  </div></div>`)
 })
 
 // ---------------- BUILD TABLE ----------------
@@ -682,24 +865,29 @@ app.get("/apps", auth, async (req, res) => {
         line-height: 1.4;
       }
     </style>
-
+ <div class="grid">
+<div class="grid-template">
+<div class="tainer">
+<a class="mizi" href="/">
+<img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
+</a>
+<a class="sil" href="/logs">Logs</a>
+<a class="sil" href="/chart">Charts</a>
+<a class="sil" href="/keitaro">Keitaro</a>
+<a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/logout">Logout</a>
+</div>
+</div>
     <div class="container">
-  <div class="topbar">
-      <a href="/">Home</a>
-      <a href="/logs">Logs</a>
-      <a href="/chart">Charts</a>
-      <a href="/keitaro">Keitaro</a>
-      <a href="/unity">Unity Spend</a>
-      <a href="/logout">Logout</a>
-    </div>
+  
       <h1>Spend by App (Moloco Overview)</h1>
   
       <form method="GET">
-        From <input type="date" name="startDate" value="${startDate}">
-        To <input type="date" name="endDate" value="${endDate}">
+        From <input class="date-input" type="date" name="startDate" value="${startDate}">
+        To <input class="date-input" type="date" name="endDate" value="${endDate}">
 
         Country
-        <select name="country">
+        <select class="date-input" name="country">
           <option value="">All</option>
           <option value="AUS" ${countryFilter === "AUS" ? "selected" : ""}>AU</option>
           <option value="CAN" ${countryFilter === "CAN" ? "selected" : ""}>CA</option>
@@ -709,8 +897,8 @@ app.get("/apps", auth, async (req, res) => {
       </form>
 
       <form method="POST">
-        Generate From <input type="date" name="startDate" value="${startDate}">
-        To <input type="date" name="endDate" value="${endDate}">
+        Generate From <input class="date-input" type="date" name="startDate" value="${startDate}">
+        To <input class="date-input" type="date" name="endDate" value="${endDate}">
         <button>Load from Moloco</button>
       </form>
 
@@ -721,6 +909,7 @@ app.get("/apps", auth, async (req, res) => {
         ${rowsHtml}
       </table>
 
+    </div>
     </div>
   `)
 })
@@ -834,16 +1023,24 @@ app.get("/chart",auth,async(req,res)=>{
  res.send(`${styles(theme)}
 
  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+ 
+<div class="grid">
+<div class="grid-template">
+<div class="tainer">
+<a class="mizi" href="/">
+<img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
+</a>
+<a class="sil" href="/logs">Logs</a>
+<a class="sil" href="/chart">Charts</a>
+<a class="sil" href="/keitaro">Keitaro</a>
+<a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/logout">Logout</a>
+</div>
+</div>
  <div class="container">
 
  ${themeToggle(theme)}
- <a href="/">Home</a>
- <a href="/logs">Logs</a>
- <a href="/keitaro">Keitaro</a>
- <a href="/apps">Moloko Spend</a>
- <a href="/unity">Unity Spend</a>
- <a href="/logout">Logout</a>
+ 
  <h1>Charts</h1>
 
 
@@ -852,7 +1049,7 @@ app.get("/chart",auth,async(req,res)=>{
 
  Metric
 
- <select name="metric">
+ <select class="date-input" name="metric">
 
  <option value="spend">Spend</option>
  <option value="clicks">Clicks</option>
@@ -863,10 +1060,10 @@ app.get("/chart",auth,async(req,res)=>{
 
  Product
 
- <select name="product">${productOptions}</select>
+ <select class="date-input" name="product">${productOptions}</select>
 
- From <input type="date" name="startDate" value="${startDate}">
- To <input type="date" name="endDate" value="${endDate}">
+ From <input class="date-input" type="date" name="startDate" value="${startDate}">
+ To <input class="date-input" type="date" name="endDate" value="${endDate}">
 
  <input type="hidden" name="theme" value="${theme}">
 
@@ -892,6 +1089,7 @@ app.get("/chart",auth,async(req,res)=>{
  })
 
  </script>
+ </div>
 
  `)
 
@@ -936,26 +1134,31 @@ app.get("/unity", auth, async (req, res) => {
   res.send(`
     ${styles(theme)}
     ${themeToggle(theme)}
-
+ <div class="grid">
+<div class="grid-template">
+<div class="tainer">
+<a class="mizi" href="/">
+<img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
+</a>
+<a class="sil" href="/logs">Logs</a>
+<a class="sil" href="/chart">Charts</a>
+<a class="sil" href="/keitaro">Keitaro</a>
+<a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/logout">Logout</a>
+</div>
+</div>
     <div class="container">
-<div class="topbar">
-      <a href="/">Home</a>
-      <a href="/logs">Logs</a>
-      <a href="/chart">Charts</a>
-      <a href="/keitaro">Keitaro</a>
-      <a href="/apps">Moloko Spend</a>
-      <a href="/logout">Logout</a>
-      </div>
+
       <h1>Unity Reports</h1>
 
 
       <!-- FILTER -->
       <form method="GET">
-        From <input type="date" name="start" value="${start}">
-        To <input type="date" name="end" value="${end}">
+        From <input class="date-input" type="date" name="start" value="${start}">
+        To <input class="date-input" type="date" name="end" value="${end}">
 
         Country 
-        <select name="country">
+        <select class="date-input" name="country">
           <option value="">All</option>
           ${countries.map(c => `
             <option value="${c}" ${c === country ? "selected" : ""}>
@@ -970,8 +1173,8 @@ app.get("/unity", auth, async (req, res) => {
 
       <!-- GENERATE -->
       <form method="POST">
-        Generate From <input type="date" name="start" value="${start}">
-        To <input type="date" name="end" value="${end}">
+        Generate From <input class="date-input" type="date" name="start" value="${start}">
+        To <input class="date-input" type="date" name="end" value="${end}">
         <button>Load from Unity</button>
       </form>
 
@@ -1002,6 +1205,7 @@ app.get("/unity", auth, async (req, res) => {
 
       </table>
 
+    </div>
     </div>
   `)
 })
@@ -1105,16 +1309,21 @@ app.get("/keitaro", auth, async (req, res) => {
   res.send(`
     ${styles(theme)}
     ${themeToggle(theme)}
-   
+   <div class="grid">
+<div class="grid-template">
+<div class="tainer">
+<a class="mizi" href="/">
+<img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
+</a>
+<a class="sil" href="/logs">Logs</a>
+<a class="sil" href="/chart">Charts</a>
+<a class="sil" href="/keitaro">Keitaro</a>
+<a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/logout">Logout</a>
+</div>
+</div>
     <div class="container">
-     <div class="topbar">
-  <a href="/">Home</a>
-      <a href="/logs">Logs</a>
-      <a href="/chart">Charts</a>
-         <a href="/apps">Moloko Spend</a
-         <a href="/unity">Unity Spend</a>
-      <a href="/logout">Logout</a>
-      </div>
+    
       <h1>Keitaro Dashboard (${dateFilter})</h1>
 
     
@@ -1122,13 +1331,13 @@ app.get("/keitaro", auth, async (req, res) => {
       <!-- FETCH -->
       <form method="POST" action="/keitaro/fetch">
         <label>From</label>
-        <input type="date" name="from" value="${dateFilter}">
+        <input class="date-input" type="date" name="from" value="${dateFilter}">
 
         <label>To</label>
-        <input type="date" name="to" value="${dateFilter}">
+        <input class="date-input" type="date" name="to" value="${dateFilter}">
 
         <label>Timezone</label>
-        <select name="timezone">
+        <select class="date-input" name="timezone">
           <option value="UTC" ${timezone==="UTC"?"selected":""}>UTC</option>
           <option value="GMT+2:00" ${timezone==="GMT+2:00"?"selected":""}>GMT+2:00</option>
           <option value="GMT+3:00" ${timezone==="GMT+3:00"?"selected":""}>GMT+3:00</option>
@@ -1140,8 +1349,8 @@ app.get("/keitaro", auth, async (req, res) => {
       <!-- FILTER DATE -->
       <h2>Filter by Date</h2>
       <form method="GET" action="/keitaro">
-        <input type="date" name="date" value="${dateFilter}">
-        <input type="hidden" name="timezone" value="${timezone}">
+        <input class="date-input" type="date" name="date" value="${dateFilter}">
+        <input class="date-input" type="hidden" name="timezone" value="${timezone}">
         <input type="hidden" name="group" value="${groupFilter}">
         <button>Filter</button>
       </form>
@@ -1149,7 +1358,7 @@ app.get("/keitaro", auth, async (req, res) => {
       <!-- FILTER GROUP -->
       <h2>Filter by Group</h2>
       <form method="GET" action="/keitaro">
-        <select name="group">
+        <select class="date-input" name="group">
           <option value="all">All</option>
           ${groups.map(g => `
             <option value="${g}" ${groupFilter === g ? "selected" : ""}>
@@ -1208,6 +1417,7 @@ app.get("/keitaro", auth, async (req, res) => {
 
         ${tableRows}
       </table>
+    </div>
     </div>
   `)
 })
