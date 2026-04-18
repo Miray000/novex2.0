@@ -4,6 +4,9 @@ import fetch from "node-fetch"
 import cookieParser from "cookie-parser"
 import { PrismaClient } from "./generated/prisma/client.js"
 import { PrismaPg } from "@prisma/adapter-pg"
+import path from "path"
+import { fileURLToPath } from "url"
+import fs from "fs"
 
 
 const connectionString = process.env.DATABASE_URL
@@ -11,9 +14,18 @@ const adapter = new PrismaPg({ connectionString })
 const prisma = new PrismaClient({ adapter })
 
 const app = express()
-app.use(express.static("public"))
+
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+const publicPath = path.join(__dirname, "public")
+
+app.use(express.static(publicPath))
 const PORT = process.env.PORT || 3000
 
+console.log("PUBLIC EXISTS:", fs.existsSync(publicPath))
+console.log("FILES:", fs.readdirSync(publicPath))
 // ---------------- CONFIG ----------------
 
 const LOGIN="admin"
@@ -65,24 +77,10 @@ function applyTheme(req,res){
 function themeToggle(theme,params=""){
 
  if(theme==="dark"){
-  return `<!-- <div class="theme-toggle"><a href="?${params}&theme=light"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="orange">
-  <circle cx="12" cy="12" r="5"/>
-  <g stroke="orange" stroke-width="2">
-    <line x1="12" y1="1" x2="12" y2="4"/>
-    <line x1="12" y1="20" x2="12" y2="23"/>
-    <line x1="1" y1="12" x2="4" y2="12"/>
-    <line x1="20" y1="12" x2="23" y2="12"/>
-    <line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/>
-    <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/>
-    <line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/>
-    <line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/>
-  </g>
-</svg></a></div> -->`
+  return ` <div class="theme-toggle"><a href="/"><div class="clock" id="clock">00:00:00</div></a></div> `
  }
 
- return `<!-- <div class="theme-toggle"><a href="?${params}&theme=dark"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="yellow">
-  <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"/>
-</svg></a></div> -->`
+ return ` <div class="theme-toggle"><a href="/"><div class="clock" id="clock">00:00:00</div></a></div> `
 
 }
 
@@ -109,14 +107,37 @@ function styles(theme="dark"){
  const thColor=dark?"black":"white"
  const inputBorder=dark?"#444":"#ccc"
  const buttonBg=dark?"rgb(52 49 49)":"#B19CD9"
- const buttonTex=dark?"#0ff":"white"
+ const buttonTex=dark?"black":"white"
   const buttonHov=dark?"rgb(52 49 49)":"#C4B4E0"
 
  return `
   <head>
+
+  <script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js")
+}
+</script>
+  <link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#000000">
  <meta charset="UTF-8">
  <title>Dashboard</title>
  <link rel="icon" href="https://i.ibb.co/3yWsvJ9C/favicon.jpg">
+<script>
+function updateClock() {
+    const now = new Date();
+
+    let hours = now.getHours().toString().padStart(2, '0');
+    let minutes = now.getMinutes().toString().padStart(2, '0');
+    let seconds = now.getSeconds().toString().padStart(2, '0');
+
+    document.getElementById('clock').textContent =
+        hours + ":" + minutes + ":" + seconds;
+}
+
+setInterval(updateClock, 1000);
+updateClock();
+</script>
  <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap');
  body{
@@ -186,7 +207,7 @@ font-family: "Orbitron", sans-serif;
  padding:10px 20px;
  border-radius:8px;
  cursor:pointer;
- color:${buttonTex};
+ color:#0ff;
  font-family: "Orbitron", sans-serif;
     font-optical-sizing: auto;
     font-weight: 900;
@@ -298,7 +319,7 @@ border:1px solid #0ff;
 
 }
  .theme-toggle{
- position:fixed;
+ position:absolute;
  top:20px;
  right:20px;
  }
@@ -371,6 +392,30 @@ display: flex;
   filter: invert(1);
   cursor: pointer;
 }
+  #fireworks {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    pointer-events: none;
+}
+  .clock {
+        color: #0ff;
+        font-size: 16px;
+        letter-spacing: 10px;
+        text-shadow:
+            0 0 5px #0ff,
+            0 0 10px #0ff,
+            0 0 20px #0ff,
+            0 0 40px #0ff;
+        padding: 20px 40px;
+        border: 2px solid #0ff;
+        border-radius: 10px;
+        background: rgba(0, 255, 255, 0.05);
+        box-shadow: 0 0 20px #0ff inset, 0 0 20px #0ff;
+    }
  </style>
  </head>
  `
@@ -513,7 +558,10 @@ app.get("/", auth, async (req, res) => {
 <head>
 
 </head>
+
+
 <div class="grid">
+
 <div class="grid-template">
 <div class="tainer">
 <a class="mizi" href="/">
@@ -590,6 +638,7 @@ document.addEventListener("keydown", (e)=>{
   if(secret.length > 10) secret = secret.slice(-10)
 })
 </script>
+
 </div>
 `)
 })
@@ -626,7 +675,7 @@ app.get("/logs", auth, async (req, res) => {
   <h1>Saved Reports</h1>
 
   <form method="GET">
-   <label> Дата </label>
+   <label> Date </label>
     <input type="date" class="date-input" name="date" value="${date}">
     <label>Додаток</label>
     <select class="date-input" name="product">
