@@ -24,8 +24,7 @@ const publicPath = path.join(__dirname, "public")
 app.use(express.static(publicPath))
 const PORT = process.env.PORT || 3000
 
-console.log("PUBLIC EXISTS:", fs.existsSync(publicPath))
-console.log("FILES:", fs.readdirSync(publicPath))
+
 // ---------------- CONFIG ----------------
 
 const LOGIN="admin"
