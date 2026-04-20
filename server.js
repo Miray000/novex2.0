@@ -7,7 +7,8 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import path from "path"
 import { fileURLToPath } from "url"
 import fs from "fs"
-
+const LOGS = []
+const MAX_LOGS = 1000
 
 const connectionString = process.env.DATABASE_URL
 const adapter = new PrismaPg({ connectionString })
@@ -111,7 +112,6 @@ function styles(theme="dark"){
 
  return `
   <head>
-
 
 <meta name="theme-color" content="#000000">
  <meta charset="UTF-8">
@@ -565,7 +565,6 @@ app.get("/", auth, async (req, res) => {
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
-<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -661,7 +660,6 @@ app.get("/logs", auth, async (req, res) => {
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
-<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -1079,7 +1077,6 @@ app.get("/chart",auth,async(req,res)=>{
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
-<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -1190,7 +1187,6 @@ app.get("/unity", auth, async (req, res) => {
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
-<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -1294,6 +1290,77 @@ app.post("/",auth,async(req,res)=>{
 
  res.redirect("/")
 
+})
+
+
+app.get("/render", auth, (req, res) => {
+
+  const theme = applyTheme(req, res)
+
+  res.send(`
+    ${styles(theme)}
+
+    <div class="grid">
+      <div class="grid-template">
+        <div class="tainer">
+          <a class="mizi" href="/">
+            <img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
+          </a>
+          <a class="sil" href="/logs">Logs</a>
+          <a class="sil" href="/render">Render Logs</a>
+          <a class="sil" href="/chart">Charts</a>
+          <a class="sil" href="/logout">Logout</a>
+        </div>
+      </div>
+
+      <div class="container">
+        ${themeToggle(theme)}
+
+        <h1>Live Logs</h1>
+
+        <input id="search" placeholder="Search..." style="width:100%;padding:10px;margin-bottom:10px">
+
+        <pre id="logs" style="
+          background:black;
+          color:#0f0;
+          padding:20px;
+          height:600px;
+          overflow:auto;
+          border:1px solid #0ff;
+        "></pre>
+      </div>
+    </div>
+
+    <script>
+      const el = document.getElementById("logs")
+      const search = document.getElementById("search")
+
+      const es = new EventSource("/render-stream")
+
+      let buffer = []
+
+      es.onmessage = (e) => {
+        buffer.push(e.data)
+
+        if (buffer.length > 1000) buffer.shift()
+
+        render()
+      }
+
+      function render(){
+        const q = search.value.toLowerCase()
+
+        const filtered = buffer.filter(l =>
+          l.toLowerCase().includes(q)
+        )
+
+        el.textContent = filtered.join("\\n")
+        el.scrollTop = el.scrollHeight
+      }
+
+      search.oninput = render
+    </script>
+  `)
 })
 
 // ---------------- LOGOUT ----------------
@@ -2092,4 +2159,62 @@ app.post("/unity", auth, async (req, res) => {
   } catch (err) {
     res.send("Unity save error: " + err.message)
   }
+})
+
+function pushLog(type, args) {
+  const time = new Date().toISOString()
+  const msg = args.map(a =>
+    typeof a === "object" ? JSON.stringify(a) : a
+  ).join(" ")
+
+  const line = `[${time}] [${type}] ${msg}`
+
+  LOGS.push(line)
+
+  if (LOGS.length > MAX_LOGS) {
+    LOGS.shift()
+  }
+}
+
+const origLog = console.log
+const origErr = console.error
+const origWarn = console.warn
+
+console.log = (...args) => {
+  pushLog("LOG", args)
+  origLog(...args)
+}
+
+console.error = (...args) => {
+  pushLog("ERROR", args)
+  origErr(...args)
+}
+
+console.warn = (...args) => {
+  pushLog("WARN", args)
+  origWarn(...args)
+}
+
+app.get("/render-stream", auth, (req, res) => {
+
+  res.setHeader("Content-Type", "text/event-stream")
+  res.setHeader("Cache-Control", "no-cache")
+  res.setHeader("Connection", "keep-alive")
+
+  // віддаємо старі логи
+  LOGS.forEach(line => {
+    res.write(`data: ${line}\n\n`)
+  })
+
+  // кожну секунду пушимо нові
+  const interval = setInterval(() => {
+    if (LOGS.length > 0) {
+      const last = LOGS[LOGS.length - 1]
+      res.write(`data: ${last}\n\n`)
+    }
+  }, 1000)
+
+  req.on("close", () => {
+    clearInterval(interval)
+  })
 })
