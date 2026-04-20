@@ -566,6 +566,7 @@ app.get("/", auth, async (req, res) => {
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -661,6 +662,7 @@ app.get("/logs", auth, async (req, res) => {
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -1078,6 +1080,7 @@ app.get("/chart",auth,async(req,res)=>{
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -1188,6 +1191,7 @@ app.get("/unity", auth, async (req, res) => {
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
