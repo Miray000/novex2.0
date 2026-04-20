@@ -113,12 +113,7 @@ function styles(theme="dark"){
  return `
   <head>
 
-  <script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js")
-}
-</script>
-  <link rel="manifest" href="/manifest.json">
+
 <meta name="theme-color" content="#000000">
  <meta charset="UTF-8">
  <title>Dashboard</title>
