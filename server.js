@@ -6,7 +6,7 @@ import { PrismaClient } from "./generated/prisma/client.js"
 import { PrismaPg } from "@prisma/adapter-pg"
 import path from "path"
 import { fileURLToPath } from "url"
-import fs from "fs"
+import os from "os"
 const LOGS = []
 const MAX_LOGS = 1000
 
@@ -16,6 +16,23 @@ const prisma = new PrismaClient({ adapter })
 
 const app = express()
 
+
+function getSystemStats() {
+  const cpus = os.cpus()
+
+  const load = os.loadavg()[0] // нагрузка за 1 мин
+  const cpuUsage = (load / cpus.length) * 100
+
+  const totalMem = os.totalmem()
+  const freeMem = os.freemem()
+  const usedMem = totalMem - freeMem
+
+  return {
+    cpu: cpuUsage.toFixed(2),
+    ram: (usedMem / 1024 / 1024).toFixed(0),
+    ramTotal: (totalMem / 1024 / 1024).toFixed(0)
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -77,10 +94,10 @@ function applyTheme(req,res){
 function themeToggle(theme,params=""){
 
  if(theme==="dark"){
-  return ` <div class="theme-toggle"><a href="/"><div class="clock" id="clock">00:00:00</div></a></div> `
+  return ` <div class="theme-toggle"><a href="/render"><div class="clock" id="clock">00:00:00</div></a></div> `
  }
 
- return ` <div class="theme-toggle"><a href="/"><div class="clock" id="clock">00:00:00</div></a></div> `
+ return ` <div class="theme-toggle"><a href="/render"><div class="clock" id="clock">00:00:00</div></a></div> `
 
 }
 
@@ -1320,6 +1337,12 @@ app.get("/render", auth, (req, res) => {
 
         <input id="search" placeholder="Search..." style="width:100%;padding:10px;margin-bottom:10px">
 
+        <div id="stats" style="
+  color:#0ff;
+  margin-bottom:10px;
+  font-size:14px;
+"></div>
+
         <pre id="logs" style="
           background:black;
           color:#0f0;
@@ -1339,13 +1362,24 @@ app.get("/render", auth, (req, res) => {
 
       let buffer = []
 
-      es.onmessage = (e) => {
-        buffer.push(e.data)
+      const statsEl = document.getElementById("stats")
 
-        if (buffer.length > 1000) buffer.shift()
+es.onmessage = function (e) {
+  const data = JSON.parse(e.data)
 
-        render()
-      }
+  if (data.log) {
+    buffer.push(data.log)
+    if (buffer.length > 1000) buffer.shift()
+  }
+
+  if (data.stats) {
+    statsEl.innerHTML =
+      "CPU: " + data.stats.cpu + "% | " +
+      "RAM: " + data.stats.ram + " MB / " + data.stats.ramTotal + " MB"
+  }
+
+  render()
+}
 
       function render(){
         const q = search.value.toLowerCase()
@@ -2207,12 +2241,16 @@ app.get("/render-stream", auth, (req, res) => {
   })
 
   // кожну секунду пушимо нові
-  const interval = setInterval(() => {
-    if (LOGS.length > 0) {
-      const last = LOGS[LOGS.length - 1]
-      res.write(`data: ${last}\n\n`)
-    }
-  }, 1000)
+ const interval = setInterval(() => {
+  const stats = getSystemStats()
+
+  const payload = {
+    log: LOGS[LOGS.length - 1] || "",
+    stats
+  }
+
+  res.write(`data: ${JSON.stringify(payload)}\n\n`)
+}, 1000)
 
   req.on("close", () => {
     clearInterval(interval)
