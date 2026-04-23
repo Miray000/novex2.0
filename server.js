@@ -18,7 +18,7 @@ const adapter = new PrismaPg({ connectionString })
 const prisma = new PrismaClient({ adapter })
 
 const app = express()
-
+app.use(express.json());
 
 
 function getSystemStats() {
@@ -2274,7 +2274,9 @@ app.get("/render-stream", auth, (req, res) => {
     clearInterval(interval)
   })
 })
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN);
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
+  polling: false
+});
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 // чтобы не спамить одинаковыми статусами
@@ -2353,10 +2355,8 @@ ${url}
   res.send("ok");
 });
 
-app.get("/", (req, res) => {
-  res.send("Server alive");
+app.get("/test", async (req, res) => {
+  await bot.sendMessage(process.env.TELEGRAM_CHAT_ID, "TEST OK");
+  res.send("sent");
 });
 
-app.listen(3000, () => {
-  console.log("🚀 Server started on 3000");
-});
