@@ -1941,6 +1941,10 @@ app.get("/game", auth, (req, res) => {
   `)
 })
 
+app.get("/test", async (req, res) => {
+  await bot.sendMessage(process.env.TELEGRAM_CHAT_ID, "TEST OK");
+  res.send("sent");
+});
 
 
 // ---------------- SERVER ----------------
@@ -2355,8 +2359,4 @@ ${url}
   res.send("ok");
 });
 
-app.get("/test", async (req, res) => {
-  await bot.sendMessage(process.env.TELEGRAM_CHAT_ID, "TEST OK");
-  res.send("sent");
-});
 
