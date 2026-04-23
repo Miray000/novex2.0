@@ -508,6 +508,15 @@ app.post("/login",(req,res)=>{
 
 })
 
+app.get("/test-group", async (req, res) => {
+  try {
+    await bot.sendMessage("-1001234567890", "hi group");
+    res.send("ok");
+  } catch (e) {
+    res.send(e.message);
+  }
+});
+
 // ---------------- DASHBOARD ----------------
 app.get("/", auth, async (req, res) => {
   const theme = applyTheme(req, res)
