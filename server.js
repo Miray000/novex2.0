@@ -508,14 +508,7 @@ app.post("/login",(req,res)=>{
 
 })
 
-app.get("/ping", async (req, res) => {
-  try {
-    await bot.sendMessage(process.env.TELEGRAM_CHAT_ID, "ping");
-    res.send("ok");
-  } catch (e) {
-    res.send(e.message);
-  }
-});
+
 
 // ---------------- DASHBOARD ----------------
 app.get("/", auth, async (req, res) => {
@@ -666,6 +659,18 @@ document.addEventListener("keydown", (e)=>{
 </div>
 `)
 })
+
+
+
+app.get("/ping", async (req, res) => {
+  try {
+    await bot.sendMessage(process.env.TELEGRAM_CHAT_ID, "ping");
+    res.send("ok");
+  } catch (e) {
+    res.send(e.message);
+  }
+});
+
 // ---------------- LOGS ----------------
 app.get("/logs", auth, async (req, res) => {
   const theme = applyTheme(req, res)  // применяем тему
