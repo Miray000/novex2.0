@@ -662,7 +662,7 @@ document.addEventListener("keydown", (e)=>{
 
 
 
-app.get("/ping", async (req, res) => {
+app.get("/ping", auth, async (req, res) => {
   try {
     await bot.sendMessage(process.env.TELEGRAM_CHAT_ID, "ping");
     res.send("ok");
