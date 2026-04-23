@@ -508,7 +508,16 @@ app.post("/login",(req,res)=>{
 
 })
 
+app.get("/test", async (req, res) => {
+  console.log("TEST HIT");
 
+  try {
+    await bot.sendMessage(process.env.TELEGRAM_CHAT_ID, "TEST OK");
+    res.send("sent");
+  } catch (e) {
+    res.send(e.message);
+  }
+});
 
 // ---------------- DASHBOARD ----------------
 app.get("/", auth, async (req, res) => {
@@ -662,14 +671,7 @@ document.addEventListener("keydown", (e)=>{
 
 
 
-app.get("/ping", auth, async (req, res) => {
-  try {
-    await bot.sendMessage(process.env.TELEGRAM_CHAT_ID, "ping");
-    res.send("ok");
-  } catch (e) {
-    res.send(e.message);
-  }
-});
+
 
 // ---------------- LOGS ----------------
 app.get("/logs", auth, async (req, res) => {
@@ -1941,10 +1943,6 @@ app.get("/game", auth, (req, res) => {
   `)
 })
 
-app.get("/test", async (req, res) => {
-  await bot.sendMessage(process.env.TELEGRAM_CHAT_ID, "TEST OK");
-  res.send("sent");
-});
 
 
 // ---------------- SERVER ----------------
