@@ -508,14 +508,6 @@ app.post("/login",(req,res)=>{
 
 })
 
-app.get("/test-group", async (req, res) => {
-  try {
-    await bot.sendMessage("-1001234567890", "hi group");
-    res.send("ok");
-  } catch (e) {
-    res.send(e.message);
-  }
-});
 
 // ---------------- DASHBOARD ----------------
 app.get("/", auth, async (req, res) => {
@@ -2269,27 +2261,47 @@ app.get("/render-stream", auth, (req, res) => {
     clearInterval(interval)
   })
 })
-
-
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN);
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-// хранение статусов (чтобы не спамить)
+// чтобы не спамить одинаковыми статусами
 const lastStatus = {};
 
 app.post("/webhook", async (req, res) => {
   const data = req.body;
 
-  console.log("Webhook:", data);
+  console.log("📩 WEBHOOK:", JSON.stringify(data));
 
-  // ⚠️ структура может отличаться — смотри console.log
-  const url = data.url || data.target || "unknown";
-  const status = data.status || data.state || "unknown";
-  const region = data.location || data.region || "unknown";
+  // универсальный парсинг (UptimeMonitorX может слать по-разному)
+  const url =
+    data.url ||
+    data.monitor_url ||
+    data.target ||
+    data.name ||
+    "unknown";
+
+  const statusRaw =
+    data.status ||
+    data.state ||
+    data.alert_type ||
+    "unknown";
+
+  const region =
+    data.location ||
+    data.region ||
+    data.check_location ||
+    "unknown";
+
+  const error =
+    data.error ||
+    data.reason ||
+    "";
+
+  const status = String(statusRaw).toLowerCase();
 
   const key = `${url}_${region}`;
 
-  // чтобы не слать одинаковые статусы
+  // анти-спам
   if (lastStatus[key] === status) {
     return res.send("skip");
   }
@@ -2300,21 +2312,38 @@ app.post("/webhook", async (req, res) => {
 
   let text = "";
 
-  if (status === "down") {
-    text = `❌ DOWN\n${url}\nGeo: ${region}\n${time}`;
+  if (status.includes("down") || status.includes("fail")) {
+    text =
+`❌ DOWN
+${url}
+🌍 Geo: ${region}
+⏱ ${time}
+${error}`;
   }
 
-  if (status === "up") {
-    text = `✅ UP\n${url}\nGeo: ${region}\n${time}`;
+  if (status.includes("up") || status.includes("ok")) {
+    text =
+`✅ UP
+${url}
+🌍 Geo: ${region}
+⏱ ${time}`;
   }
 
   if (text) {
-    await bot.sendMessage(CHAT_ID, text);
+    try {
+      await bot.sendMessage(CHAT_ID, text, { parse_mode: "HTML" });
+    } catch (e) {
+      console.error("Telegram error:", e.message);
+    }
   }
 
   res.send("ok");
 });
 
-app.listen(3002, () => {
-  console.log("Webhook server started on 3000");
+app.get("/", (req, res) => {
+  res.send("Server alive");
+});
+
+app.listen(3000, () => {
+  console.log("🚀 Server started on 3000");
 });
