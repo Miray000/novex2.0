@@ -44,7 +44,7 @@ const __dirname = path.dirname(__filename)
 const publicPath = path.join(__dirname, "public")
 
 app.use(express.static(publicPath))
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT || 3000
 
 
 // ---------------- CONFIG ----------------
@@ -1928,29 +1928,6 @@ app.get("/game", auth, (req, res) => {
 })
 
 
-// UI
-app.get("/dom", (req, res) => {
-  res.send(`
-    <h2>Добавить домен</h2>
-    <form method="POST" action="/add">
-      <input name="url" placeholder="example.com" />
-      <button>Добавить</button>
-    </form>
-    <ul>
-      ${domains.map(d => `<li>${d.url} — US:${d.status.US} AU:${d.status.AU}</li>`).join("")}
-    </ul>
-  `);
-});
-
-app.post("/add", (req, res) => {
-  domains.push({
-    url: req.body.url,
-    status: { US: "unknown", AU: "unknown" }
-  });
-  res.redirect("/");
-});
-
-app.listen(3000, () => console.log("Server started"));
 
 // ---------------- SERVER ----------------
 
