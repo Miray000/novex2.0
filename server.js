@@ -7,6 +7,9 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import path from "path"
 import { fileURLToPath } from "url"
 import os from "os"
+import axios from "axios";
+import TelegramBot from "node-telegram-bot-api";
+
 const LOGS = []
 const MAX_LOGS = 1000
 
@@ -15,6 +18,7 @@ const adapter = new PrismaPg({ connectionString })
 const prisma = new PrismaClient({ adapter })
 
 const app = express()
+
 
 
 function getSystemStats() {
@@ -40,7 +44,7 @@ const __dirname = path.dirname(__filename)
 const publicPath = path.join(__dirname, "public")
 
 app.use(express.static(publicPath))
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3001
 
 
 // ---------------- CONFIG ----------------
@@ -582,7 +586,6 @@ app.get("/", auth, async (req, res) => {
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
-<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -678,7 +681,6 @@ app.get("/logs", auth, async (req, res) => {
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
-<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -937,7 +939,6 @@ app.get("/apps", auth, async (req, res) => {
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
-<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -1097,7 +1098,6 @@ app.get("/chart",auth,async(req,res)=>{
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
-<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -1928,6 +1928,29 @@ app.get("/game", auth, (req, res) => {
 })
 
 
+// UI
+app.get("/dom", (req, res) => {
+  res.send(`
+    <h2>Добавить домен</h2>
+    <form method="POST" action="/add">
+      <input name="url" placeholder="example.com" />
+      <button>Добавить</button>
+    </form>
+    <ul>
+      ${domains.map(d => `<li>${d.url} — US:${d.status.US} AU:${d.status.AU}</li>`).join("")}
+    </ul>
+  `);
+});
+
+app.post("/add", (req, res) => {
+  domains.push({
+    url: req.body.url,
+    status: { US: "unknown", AU: "unknown" }
+  });
+  res.redirect("/");
+});
+
+app.listen(3000, () => console.log("Server started"));
 
 // ---------------- SERVER ----------------
 
@@ -2260,3 +2283,52 @@ app.get("/render-stream", auth, (req, res) => {
     clearInterval(interval)
   })
 })
+
+
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN);
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+// хранение статусов (чтобы не спамить)
+const lastStatus = {};
+
+app.post("/webhook", async (req, res) => {
+  const data = req.body;
+
+  console.log("Webhook:", data);
+
+  // ⚠️ структура может отличаться — смотри console.log
+  const url = data.url || data.target || "unknown";
+  const status = data.status || data.state || "unknown";
+  const region = data.location || data.region || "unknown";
+
+  const key = `${url}_${region}`;
+
+  // чтобы не слать одинаковые статусы
+  if (lastStatus[key] === status) {
+    return res.send("skip");
+  }
+
+  lastStatus[key] = status;
+
+  const time = new Date().toLocaleString();
+
+  let text = "";
+
+  if (status === "down") {
+    text = `❌ DOWN\n${url}\nGeo: ${region}\n${time}`;
+  }
+
+  if (status === "up") {
+    text = `✅ UP\n${url}\nGeo: ${region}\n${time}`;
+  }
+
+  if (text) {
+    await bot.sendMessage(CHAT_ID, text);
+  }
+
+  res.send("ok");
+});
+
+app.listen(3002, () => {
+  console.log("Webhook server started on 3000");
+});
