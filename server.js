@@ -7,8 +7,7 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import path from "path"
 import { fileURLToPath } from "url"
 import os from "os"
-import axios from "axios";
-import TelegramBot from "node-telegram-bot-api";
+
 
 const LOGS = []
 const MAX_LOGS = 1000
@@ -18,7 +17,7 @@ const adapter = new PrismaPg({ connectionString })
 const prisma = new PrismaClient({ adapter })
 
 const app = express()
-app.use(express.json());
+
 
 
 function getSystemStats() {
@@ -136,6 +135,7 @@ function styles(theme="dark"){
 
 <meta name="theme-color" content="#000000">
  <meta charset="UTF-8">
+ <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
  <title>Dashboard</title>
  <link rel="icon" href="https://i.ibb.co/3yWsvJ9C/favicon.jpg">
 <script>
@@ -508,17 +508,6 @@ app.post("/login",(req,res)=>{
 
 })
 
-app.get("/test", async (req, res) => {
-  console.log("TEST HIT");
-
-  try {
-    await bot.sendMessage(process.env.TELEGRAM_CHAT_ID, "TEST OK");
-    res.send("sent");
-  } catch (e) {
-    res.send(e.message);
-  }
-});
-
 // ---------------- DASHBOARD ----------------
 app.get("/", auth, async (req, res) => {
   const theme = applyTheme(req, res)
@@ -669,9 +658,174 @@ document.addEventListener("keydown", (e)=>{
 `)
 })
 
+app.get("/map", auth, async (req, res) => {
+  const theme = applyTheme(req, res)
+  const date = req.query.date || today()
+const geoData = {}      // installs by country
+  const geoApps = {}   
+
+const records = await prisma.appSpend.findMany({
+  where: { date }
+})
 
 
 
+records.forEach(r => {
+  const country = r.country
+  if (!country) return
+
+  const installs = r.installs || 0
+
+  // суммарные инсталлы по стране
+  geoData[country] = (geoData[country] || 0) + installs
+
+  // инсталлы по приложениям внутри страны
+  geoApps[country] = geoApps[country] || {}
+  geoApps[country][r.app_name] =
+    (geoApps[country][r.app_name] || 0) + installs
+})
+
+     // apps by country
+
+ 
+
+  res.send(`
+    ${styles(theme)}
+    ${themeToggle(theme)}
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <div class="grid">
+      <div class="grid-template">
+        <div class="tainer">
+          <a class="mizi" href="/"><img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" /></a>
+          <a class="sil" href="/logs">Logs</a>
+          <a class="sil" href="/chart">Charts</a>
+          <a class="sil" href="/keitaro">Keitaro</a>
+          <a class="sil" href="/apps">Moloco Spend</a>
+          <a class="sil" href="/map">Geo Map</a>
+          <a class="sil" href="/logout">Logout</a>
+        </div>
+      </div>
+
+      <div class="container">
+        <h1>🌍 Geo Map (${date})</h1>
+
+        <form>
+          Date <input class="date-input" type="date" name="date" value="${date}">
+          <button>Show</button>
+        </form>
+
+        <div id="map" style="height:600px; border-radius:10px;"></div>
+      </div>
+    </div>
+
+    <script>
+      const spendData = ${JSON.stringify(geoData)}
+      const appsData = ${JSON.stringify(geoApps)}
+
+      const map = L.map('map').setView([20, 0], 2)
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OSM'
+      }).addTo(map)
+
+      function getColor(v) {
+        return v > 5000 ? '#ff0000' :
+               v > 2000 ? '#e9970a' :
+               v > 1000 ? '#beed14' :
+               v > 500  ? '#0dd58c' :
+               v > 100  ? '#10e2e2' :
+               v > 0    ? '#1612e4' :
+                          '#111'
+      }
+
+      function style(feature) {
+        const iso = feature.id
+        const value = spendData[iso] || 0
+
+        return {
+          fillColor: getColor(value),
+          weight: 1,
+          color: '#0ff',
+          fillOpacity: 0.65
+        }
+      }
+
+      function onEachFeature(feature, layer) {
+        const iso = feature.id
+        const name = feature.properties.name
+        const value = spendData[iso] || 0
+
+        const apps = appsData[iso] || {}
+
+        const top = Object.entries(apps)
+          .sort((a,b)=>b[1]-a[1])
+          .slice(0,3)
+          .map(a => a[0] + ": " + a[1])
+          .join("<br>")
+
+        layer.bindTooltip(
+          "<b>" + name + "</b><br>Installs: " + value +
+          (top ? "<br><br>" + top : ""),
+          { sticky: true }
+        )
+      }
+
+      fetch("https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json")
+        .then(res => res.json())
+        .then(data => {
+          L.geoJson(data, {
+            style,
+            onEachFeature
+          }).addTo(map)
+        })
+
+      // -------- LEGEND --------
+      const legend = L.control({ position: 'bottomright' })
+
+      function getColorLegend(v) {
+        return getColor(v)
+      }
+
+      legend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'info legend')
+        const grades = [0, 100, 500, 1000, 2000, 5000]
+
+        div.innerHTML = '<b>Installs</b><br>'
+
+        for (let i = 0; i < grades.length; i++) {
+          div.innerHTML +=
+            '<i style="background:' + getColorLegend(grades[i] + 1) + '"></i> ' +
+            grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+')
+        }
+
+        return div
+      }
+
+      legend.addTo(map)
+    </script>
+
+    <style>
+      .legend {
+        background: rgba(0,0,0,0.7);
+        padding: 10px;
+        color: #0ff;
+        font-size: 12px;
+        border-radius: 8px;
+        line-height: 18px;
+      }
+      .legend i {
+        width: 12px;
+        height: 12px;
+        float: left;
+        margin-right: 6px;
+        opacity: 0.9;
+      }
+    </style>
+  `)
+})
 
 // ---------------- LOGS ----------------
 app.get("/logs", auth, async (req, res) => {
@@ -772,6 +926,8 @@ function buildTable(rows, percent = 0) {
   let html = `<table>
     <tr>
       <th>Row</th>
+      <th>Campaign</th>
+      <th>Geo</th>
       <th>Spend</th>
       <th>Revenue</th>
       <th>Clicks</th>
@@ -783,23 +939,32 @@ function buildTable(rows, percent = 0) {
       <th>CR</th>
     </tr>`
 
-  rows.forEach((row, i) => {
+   rows.forEach((row, i) => {
     const m = row.metric || {}
+
+    const campaign = row.campaign?.title || "-"
+    const geo = row.campaign?.country || "-"
+
     const spend = Number(m.spend || 0)
     const revenue = Number(m.revenue || 0)
     const clicks = Number(m.clicks || 0)
     const installs = Number(m.installs || 0)
     const impressions = Number(m.impressions || 0)
+
     const profit = revenue - spend
     const cpi = installs ? spend / installs : 0
     const ctr = impressions ? (clicks / impressions) * 100 : 0
     const cr = clicks ? (installs / clicks) * 100 : 0
 
-    // Подсветка по проценту
-    const rowStyle = percent > 0 && spend < (percent / 100) * revenue ? ' style="background:#faa"' : ''
+    const rowStyle =
+      percent > 0 && spend < (percent / 100) * revenue
+        ? ' style="background:#faa"'
+        : ''
 
     html += `<tr${rowStyle}>
       <td>${i + 1}</td>
+      <td>${campaign}</td>
+      <td>${geo}</td>
       <td>$${spend.toFixed(2)}</td>
       <td>$${revenue.toFixed(2)}</td>
       <td>${clicks}</td>
@@ -858,10 +1023,16 @@ app.get("/apps", auth, async (req, res) => {
     if (!appData[r.app_name]) {
       appData[r.app_name] = {
         dates: {},
+         installs: {},
         campaigns: new Map(),
         adAccounts: new Set()
       }
     }
+
+   
+
+appData[r.app_name].installs[r.date] =
+  (appData[r.app_name].installs[r.date] || 0) + (r.installs || 0)
 
     appData[r.app_name].dates[r.date] =
       (appData[r.app_name].dates[r.date] || 0) + r.spend
@@ -881,21 +1052,26 @@ app.get("/apps", auth, async (req, res) => {
     return String(str).replace(new RegExp(`(.{${n}})`, "g"), "$1<br>")
   }
 
-  const appTotals = Object.entries(appData)
-    .map(([app, obj]) => {
-      const total = Object.values(obj.dates).reduce((a, b) => a + b, 0)
+ const appTotals = Object.entries(appData)
+  .map(([app, obj]) => {
+    const total = Object.values(obj.dates).reduce((a, b) => a + b, 0)
 
-      return {
-        app,
-        total,
-        data: obj.dates,
-        campaigns: Array.from(obj.campaigns.entries()),
-        adAccounts: Array.from(obj.adAccounts)
-      }
-    })
+    const installsTotal = Object.values(obj.installs || {})
+      .reduce((a, b) => a + b, 0)
+
+    return {
+      app,
+      total,
+      installsTotal, // 👈
+      data: obj.dates,
+      installs: obj.installs, // 👈
+      campaigns: Array.from(obj.campaigns.entries()),
+      adAccounts: Array.from(obj.adAccounts)
+    }
+  })
     .sort((a, b) => b.total - a.total)
 
-  let header = `<tr><th class="logs_h">App</th><th class="logs_h">Ad Account</th><th class="logs_h">Campaigns</th>`
+  let header = `<tr><th class="logs_h">App</th><th class="logs_h">Ad Account</th><th class="logs_h">Campaigns</th><th class="logs_h">Install</th>`
 
   dates.forEach(d => {
     header += `<th class="logs_h">${d}</th>`
@@ -918,13 +1094,20 @@ app.get("/apps", auth, async (req, res) => {
         )
         .join("<br>")
     }</td>`
+row += `<td><b>${obj.installsTotal}</b></td>`
 
-    dates.forEach(d => {
-      const val = obj.data[d] || 0
-      row += `<td>$${val.toFixed(2)}</td>`
-    })
+   dates.forEach(d => {
+  const spend = obj.data[d] || 0
+  const inst = obj.installs[d] || 0
+
+  row += `<td>
+    $${spend.toFixed(2)}<br>
+    
+  </td>`
+})
 
     row += `<td><b>$${obj.total.toFixed(2)}</b></td>`
+
     row += `</tr>`
 
     return row
@@ -1270,6 +1453,7 @@ app.get("/unity", auth, async (req, res) => {
           <th class="logs_h">Campaign</th>
           <th class="logs_h">Country</th>
           <th class="logs_h">Spend</th>
+           <th class="logs_h">Installs</th>
         </tr>
 
         ${reports.map(r => `
@@ -1280,6 +1464,7 @@ app.get("/unity", auth, async (req, res) => {
             <td>${r.campaign_name}</td>
             <td>${r.country_unity}</td>
             <td>$${r.spend.toFixed(6)}</td>
+            <td>${r.installs || 0}</td>
           </tr>
         `).join("")}
 
@@ -1989,7 +2174,7 @@ async function createReport(token,product_id,date){
  date_range:{start:date,end:date},
  ad_account_id:AD_ACCOUNT_ID,
  product_id,
- dimensions:["SKAN"]
+ dimensions:["SKAN", "CAMPAIGN"]
  })
  })
 
@@ -2058,7 +2243,7 @@ async function fetchSpendByApp(token, date) {
           "CAMPAIGN_TARGET_COUNTRIES",
           "AD_ACCOUNT_TITLE"
         ],
-        metrics: ["SPEND"]
+        metrics: ["SPEND","INSTALLS"]
       })
     }
   )
@@ -2099,21 +2284,19 @@ app.post("/apps", auth, async (req, res) => {
     for (const date of dates) {
       const rows = await fetchSpendByApp(token, date)
 
-      await prisma.appSpend.createMany({
-        data: rows.map(r => ({
-          date,
+   await prisma.appSpend.createMany({
+  data: rows.map(r => ({
+    date,
+    app_name: r.app?.title || "Unknown",
+    campaign_name: r.campaign?.title || "Unknown",
+    country: r.campaign?.target_countries?.[0] || "Unknown",
+    ad_account: r.ad_account?.title || "Unknown",
 
-          app_name: r.app?.title || "Unknown",
+    spend: Number(r.metric?.spend || 0),
 
-          campaign_name: r.campaign?.title || "Unknown",
-
-          country: r.campaign?.target_countries?.[0] || "Unknown",
-
-          ad_account: r.ad_account?.title || "Unknown",
-
-          spend: Number(r.metric?.spend || 0)
-        }))
-      })
+    installs: Number(r.metric?.installs || 0) // 👈 ДОБАВИЛИ
+  }))
+})
     }
 
     res.redirect(`/apps?startDate=${startDate}&endDate=${endDate}`)
@@ -2147,7 +2330,7 @@ function parseCSV(text) {
 // ---------------- FETCH UNITY ----------------
 
 async function fetchUnityStats(start, end) {
-  const url = `https://services.api.unity.com/advertise/stats/v2/organizations/${UNITY_ORG_ID}/reports/acquisitions?start=${start}&end=${end}&scale=day&metrics=spend&breakdowns=app,campaign,country`
+  const url = `https://services.api.unity.com/advertise/stats/v2/organizations/${UNITY_ORG_ID}/reports/acquisitions?start=${start}&end=${end}&scale=day&metrics=spend,installs&breakdowns=app,campaign,country`
 
   const resp = await fetch(url, {
     method: "GET",
@@ -2186,12 +2369,14 @@ app.post("/unity", auth, async (req, res) => {
       date: r["timestamp"],
       app_id: r["app id"],
       app_name: r["app name"],
+      campaign_id: r["campaign id"],
       campaign_name: r["campaign name"],
       country_unity: r["country"],
-      spend: Number(r["spend"] || 0)
+
+      spend: Number(r["spend"] || 0),
+      installs: Number(r["installs"] || 0)   // 🔥 ВОТ ЭТО НОВОЕ
     }))
 
-    // удалить старые данные за диапазон
     await prisma.unityReport.deleteMany({
       where: {
         date: {
@@ -2201,7 +2386,6 @@ app.post("/unity", auth, async (req, res) => {
       }
     })
 
-    // сохранить новые
     for (const r of formatted) {
       await prisma.unityReport.create({
         data: r
@@ -2276,85 +2460,4 @@ app.get("/render-stream", auth, (req, res) => {
     clearInterval(interval)
   })
 })
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
-  polling: false
-});
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
-
-// чтобы не спамить одинаковыми статусами
-const lastStatus = {};
-
-app.post("/webhook", async (req, res) => {
-  const data = req.body;
-
-  console.log("📩 WEBHOOK:", JSON.stringify(data));
-
-  // универсальный парсинг (UptimeMonitorX может слать по-разному)
-  const url =
-    data.url ||
-    data.monitor_url ||
-    data.target ||
-    data.name ||
-    "unknown";
-
-  const statusRaw =
-    data.status ||
-    data.state ||
-    data.alert_type ||
-    "unknown";
-
-  const region =
-    data.location ||
-    data.region ||
-    data.check_location ||
-    "unknown";
-
-  const error =
-    data.error ||
-    data.reason ||
-    "";
-
-  const status = String(statusRaw).toLowerCase();
-
-  const key = `${url}_${region}`;
-
-  // анти-спам
-  if (lastStatus[key] === status) {
-    return res.send("skip");
-  }
-
-  lastStatus[key] = status;
-
-  const time = new Date().toLocaleString();
-
-  let text = "";
-
-  if (status.includes("down") || status.includes("fail")) {
-    text =
-`❌ DOWN
-${url}
-🌍 Geo: ${region}
-⏱ ${time}
-${error}`;
-  }
-
-  if (status.includes("up") || status.includes("ok")) {
-    text =
-`✅ UP
-${url}
-🌍 Geo: ${region}
-⏱ ${time}`;
-  }
-
-  if (text) {
-    try {
-      await bot.sendMessage(CHAT_ID, text, { parse_mode: "HTML" });
-    } catch (e) {
-      console.error("Telegram error:", e.message);
-    }
-  }
-
-  res.send("ok");
-});
-
 
