@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Report {
+  id        Int      @id @default(autoincrement())
+  date      String
+  product   String
+  rows      Json
+  account   String?
+  createdAt DateTime @default(now())
+}
+
+model KeitaroReport {
+  id        Int      @id @default(autoincrement())
+  date      String
+  campaign  String
+  rows      Json
+  group     String?
+  createdAt DateTime @default(now())
+}
+
+model UnityReport {
+  id            Int      @id @default(autoincrement())
+  date          String
+  app_id        String
+  app_name      String
+  spend         Float
+  installs      Int      @default(0)
+  campaign_name String?
+  campaign_id   String?
+  country_unity String?
+  createdAt     DateTime @default(now())
+}
+
+model AppSpend {
+  id            Int      @id @default(autoincrement())
+  date          String
+  app_name      String
+  spend         Float
+  campaign_name String?
+  installs      Int      @default(0)
+  country       String?
+  ad_account    String?
+  account       String?
+  createdAt     DateTime @default(now())
+}
