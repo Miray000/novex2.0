@@ -136,7 +136,7 @@ function styles(theme="dark"){
 <meta name="theme-color" content="#000000">
  <meta charset="UTF-8">
  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
- <title>Dashboard</title>
+ <title>Novoplex</title>
  <link rel="icon" href="https://i.ibb.co/3yWsvJ9C/favicon.jpg">
 <script>
 function updateClock() {
