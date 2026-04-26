@@ -585,7 +585,9 @@ app.get("/", auth, async (req, res) => {
 <a class="sil" href="/logs">Logs</a> 
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
-<a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/apps">Moloko</a>
+<a class="sil" href="/map">Geo Map</a>
+<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -730,7 +732,7 @@ records.forEach(r => {
           <a class="sil" href="/chart">Charts</a>
           <a class="sil" href="/keitaro">Keitaro</a>
           <a class="sil" href="/apps">Moloco Spend</a>
-          <a class="sil" href="/map">Geo Map</a>
+          <a class="sil" href="/unity">Unity Spend</a>
           <a class="sil" href="/logout">Logout</a>
         </div>
       </div>
@@ -887,6 +889,8 @@ app.get("/logs", auth, async (req, res) => {
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/map">Geo Map</a>
+<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -1191,6 +1195,8 @@ row += `<td><b>${obj.installsTotal}</b></td>`
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/map">Geo Map</a>
+<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -1359,6 +1365,8 @@ app.get("/chart",auth,async(req,res)=>{
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/map">Geo Map</a>
+<a class="sil" href="/unity">Unity Spend</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
@@ -1469,6 +1477,7 @@ app.get("/unity", auth, async (req, res) => {
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
+<a class="sil" href="/map">Geo Map</a>
 <a class="sil" href="/logout">Logout</a>
 </div>
 </div>
