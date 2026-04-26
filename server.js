@@ -582,7 +582,7 @@ app.get("/", auth, async (req, res) => {
 <a class="mizi" href="/">
 <img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
 </a>
-<a class="sil" href="/logs">Logs</a>
+<a class="sil" href="/logs">Logs</a> 
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
@@ -664,8 +664,24 @@ app.get("/map", auth, async (req, res) => {
 const geoData = {}      // installs by country
   const geoApps = {}   
 
+const accountFilter = req.query.account || ""
+
+const accounts = [
+  { id: "FlowPr_40", name: "Falcon" },
+  { id: "FlowPr_36", name: "TimDrake" }
+]
 const records = await prisma.appSpend.findMany({
-  where: { date }
+  where: {
+    date,
+    ...(accountFilter && {
+      ad_account: accountFilter
+    }),
+    ...(!accountFilter && {
+      ad_account: {
+        in: allowedAccounts
+      }
+    })
+  }
 })
 
 
@@ -700,7 +716,7 @@ records.forEach(r => {
       <div class="grid-template">
         <div class="tainer">
           <a class="mizi" href="/"><img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" /></a>
-          <a class="sil" href="/logs">Logs</a>
+         <a class="sil" href="/logs">Logs</a> 
           <a class="sil" href="/chart">Charts</a>
           <a class="sil" href="/keitaro">Keitaro</a>
           <a class="sil" href="/apps">Moloco Spend</a>
@@ -714,6 +730,16 @@ records.forEach(r => {
 
         <form>
           Date <input class="date-input" type="date" name="date" value="${date}">
+          Account
+<select class="date-input" name="account">
+  <option value="">All allowed</option>
+
+  ${accounts.map(acc => `
+    <option value="${acc.id}" ${accountFilter === acc.id ? "selected" : ""}>
+      ${acc.name}
+    </option>
+  `).join("")}
+</select>
           <button>Show</button>
         </form>
 
@@ -847,7 +873,7 @@ app.get("/logs", auth, async (req, res) => {
 <a class="mizi" href="/">
 <img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
 </a>
-<a class="sil" href="/logs">Logs</a>
+<a class="sil" href="/logs">Logs</a> 
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
@@ -996,18 +1022,35 @@ app.get("/apps", auth, async (req, res) => {
   const startDate = req.query.startDate || today()
   const endDate = req.query.endDate || startDate
   const countryFilter = req.query.country || ""
+const accountFilter = req.query.account || ""
 
-  const records = await prisma.appSpend.findMany({
-    where: {
-      date: {
-        gte: startDate,
-        lte: endDate
-      },
-      ...(countryFilter && {
-        country: countryFilter
-      })
-    }
-  })
+const allowedAccounts = ["FlowPr_40", "FlowPr_36"]
+
+const accountsUI = [
+  { id: "FlowPr_40", name: "Falcon" },
+  { id: "FlowPr_36", name: "TimDrake" }
+]
+
+ const records = await prisma.appSpend.findMany({
+  where: {
+    date: {
+      gte: startDate,
+      lte: endDate
+    },
+    ...(countryFilter && {
+      country: countryFilter
+    }),
+    ...(accountFilter && {
+      ad_account: accountFilter
+    }),
+    // если фильтр пустой → показываем только разрешённые аккаунты
+    ...(!accountFilter && {
+      ad_account: {
+        in: accountsUI.map(a => a.id)
+      }
+    })
+  }
+})
 
   const dates = []
   let current = new Date(startDate)
@@ -1134,7 +1177,7 @@ row += `<td><b>${obj.installsTotal}</b></td>`
 <a class="mizi" href="/">
 <img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
 </a>
-<a class="sil" href="/logs">Logs</a>
+<a class="sil" href="/logs">Logs</a> 
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
@@ -1155,7 +1198,16 @@ row += `<td><b>${obj.installsTotal}</b></td>`
           <option value="AUS" ${countryFilter === "AUS" ? "selected" : ""}>AU</option>
           <option value="CAN" ${countryFilter === "CAN" ? "selected" : ""}>CA</option>
         </select>
+Account
+<select class="date-input" name="account">
+  <option value="">All allowed</option>
 
+  ${accountsUI.map(acc => `
+    <option value="${acc.id}" ${accountFilter === acc.id ? "selected" : ""}>
+      ${acc.name}
+    </option>
+  `).join("")}
+</select>
         <button>Show</button>
       </form>
 
@@ -1293,7 +1345,7 @@ app.get("/chart",auth,async(req,res)=>{
 <a class="mizi" href="/">
 <img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
 </a>
-<a class="sil" href="/logs">Logs</a>
+<a class="sil" href="/logs">Logs</a> 
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
@@ -1403,7 +1455,7 @@ app.get("/unity", auth, async (req, res) => {
 <a class="mizi" href="/">
 <img class="mage" src="https://i.ibb.co/3yWsvJ9C/favicon.jpg" />
 </a>
-<a class="sil" href="/logs">Logs</a>
+ <a class="sil" href="/logs">Logs</a> 
 <a class="sil" href="/chart">Charts</a>
 <a class="sil" href="/keitaro">Keitaro</a>
 <a class="sil" href="/apps">Moloko Spend</a>
@@ -2136,27 +2188,32 @@ app.listen(PORT,()=>console.log("Server running http://localhost:"+PORT))
 
 // ---------------- MOLOCO API ----------------
 
-async function getToken(){
+const tokenCache = {}
 
- if(getToken.cached && Date.now()-getToken.time<3*24*60*60*1000)
- return getToken.cached
+async function getToken(apiKey) {
+  const cache = tokenCache[apiKey]
 
- const resp=await fetch("https://api.moloco.cloud/cm/v1/auth/tokens",{
- method:"POST",
- headers:{
- "accept":"application/json",
- "content-type":"application/json"
- },
- body:JSON.stringify({api_key:API_KEY})
- })
+  if (cache && Date.now() - cache.time < 3 * 24 * 60 * 60 * 1000) {
+    return cache.token
+  }
 
- const data=await resp.json()
+  const resp = await fetch("https://api.moloco.cloud/cm/v1/auth/tokens", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ api_key: apiKey })
+  })
 
- getToken.cached=data.token
- getToken.time=Date.now()
+  const data = await resp.json()
 
- return data.token
+  tokenCache[apiKey] = {
+    token: data.token,
+    time: Date.now()
+  }
 
+  return data.token
 }
 
 async function createReport(token,product_id,date){
@@ -2220,7 +2277,7 @@ async function fetchRows(token,config,date){
 
 // ---------------- FETCH ----------------
 
-async function fetchSpendByApp(token, date) {
+async function fetchSpendByApp(token, date, adAccountId) {
   const resp = await fetch(
     "https://api.moloco.cloud/cm/v1/analytics-overview",
     {
@@ -2236,14 +2293,14 @@ async function fetchSpendByApp(token, date) {
           end: date
         },
         type: "USER_ACQUISITION",
-        ad_account_id: AD_ACCOUNT_ID,
+        ad_account_id: adAccountId, // 👈 теперь динамический
         dimensions: [
           "APP_OR_SITE_TITLE",
           "CAMPAIGN_TITLE",
           "CAMPAIGN_TARGET_COUNTRIES",
           "AD_ACCOUNT_TITLE"
         ],
-        metrics: ["SPEND","INSTALLS"]
+        metrics: ["SPEND", "INSTALLS"]
       })
     }
   )
@@ -2252,7 +2309,6 @@ async function fetchSpendByApp(token, date) {
   return data.rows || []
 }
 
-
 // ---------------- POST ----------------
 
 app.post("/apps", auth, async (req, res) => {
@@ -2260,8 +2316,6 @@ app.post("/apps", auth, async (req, res) => {
   const endDate = req.body.endDate || startDate
 
   try {
-    const token = await getToken()
-
     const dates = []
     let current = new Date(startDate)
 
@@ -2269,6 +2323,18 @@ app.post("/apps", auth, async (req, res) => {
       dates.push(current.toISOString().slice(0, 10))
       current.setDate(current.getDate() + 1)
     }
+
+    // 👇 ВСЕ аккаунты
+    const accounts = [
+      {
+        apiKey: process.env.API_KEY_1,
+        adAccountId: process.env.AD_ACCOUNT_ID_1
+      },
+      {
+        apiKey: process.env.API_KEY_2,
+        adAccountId: process.env.AD_ACCOUNT_ID_2
+      }
+    ]
 
     // удалить старые данные
     await prisma.appSpend.deleteMany({
@@ -2280,26 +2346,37 @@ app.post("/apps", auth, async (req, res) => {
       }
     })
 
-    // загрузка + сохранение
-    for (const date of dates) {
-      const rows = await fetchSpendByApp(token, date)
+    // загрузка
+    for (const acc of accounts) {
+      if (!acc.apiKey || !acc.adAccountId) continue
 
-   await prisma.appSpend.createMany({
-  data: rows.map(r => ({
-    date,
-    app_name: r.app?.title || "Unknown",
-    campaign_name: r.campaign?.title || "Unknown",
-    country: r.campaign?.target_countries?.[0] || "Unknown",
-    ad_account: r.ad_account?.title || "Unknown",
+      const token = await getToken(acc.apiKey)
 
-    spend: Number(r.metric?.spend || 0),
+      for (const date of dates) {
+        const rows = await fetchSpendByApp(
+          token,
+          date,
+          acc.adAccountId
+        )
 
-    installs: Number(r.metric?.installs || 0) // 👈 ДОБАВИЛИ
-  }))
-})
+        await prisma.appSpend.createMany({
+          data: rows.map(r => ({
+            date,
+            app_name: r.app?.title || "Unknown",
+            campaign_name: r.campaign?.title || "Unknown",
+            country: r.campaign?.target_countries?.[0] || "Unknown",
+            ad_account: r.ad_account?.title || "Unknown",
+
+            spend: Number(r.metric?.spend || 0),
+            installs: Number(r.metric?.installs || 0),
+
+            account: acc.adAccountId // 👈 важно
+          }))
+        })
+      }
     }
 
-    res.redirect(`/apps?startDate=${startDate}&endDate=${endDate}`)
+   res.redirect(`/apps?startDate=${startDate}&endDate=${endDate}&account=${accountFilter || ""}`)
   } catch (err) {
     res.send("Apps save error: " + err.message)
   }
