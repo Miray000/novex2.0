@@ -41,6 +41,8 @@ model AppSpend {
   date      String
   app_name  String
   spend     Float
+installs Int @default(0)
+ account        String?
   campaign_name String?
   country   String?
   ad_account String?
