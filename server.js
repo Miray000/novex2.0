@@ -136,7 +136,7 @@ function styles(theme="dark"){
 <meta name="theme-color" content="#000000">
  <meta charset="UTF-8">
  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
- <title>Novoplex</title>
+ <title>Dashboard</title>
  <link rel="icon" href="https://i.ibb.co/3yWsvJ9C/favicon.jpg">
 <script>
 function updateClock() {
@@ -666,7 +666,13 @@ const geoData = {}      // installs by country
 
 const accountFilter = req.query.account || ""
 
+
 const accounts = [
+  { id: "FlowPr_40", name: "Falcon" },
+  { id: "FlowPr_36", name: "TimDrake" }
+]
+
+const accountsUI = [
   { id: "FlowPr_40", name: "Falcon" },
   { id: "FlowPr_36", name: "TimDrake" }
 ]
@@ -676,9 +682,13 @@ const records = await prisma.appSpend.findMany({
     ...(accountFilter && {
       ad_account: accountFilter
     }),
+     ...(accountFilter && {
+      ad_account: accountFilter
+    }),
+    // если фильтр пустой → показываем только разрешённые аккаунты
     ...(!accountFilter && {
       ad_account: {
-        in: allowedAccounts
+        in: accountsUI.map(a => a.id)
       }
     })
   }
@@ -1024,7 +1034,7 @@ app.get("/apps", auth, async (req, res) => {
   const countryFilter = req.query.country || ""
 const accountFilter = req.query.account || ""
 
-const allowedAccounts = ["FlowPr_40", "FlowPr_36"]
+
 
 const accountsUI = [
   { id: "FlowPr_40", name: "Falcon" },
